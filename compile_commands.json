@@ -1,0 +1,116 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-I./src",
+      "-Og",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-g",
+      "-std=c99",
+      "-c",
+      "-o",
+      "bin/./src/texture.c.o",
+      "src/texture.c"
+    ],
+    "directory": "/home/dethas/prog/atra",
+    "file": "/home/dethas/prog/atra/src/texture.c",
+    "output": "/home/dethas/prog/atra/bin/./src/texture.c.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-I./src",
+      "-Og",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-g",
+      "-std=c99",
+      "-c",
+      "-o",
+      "bin/./src/memory.c.o",
+      "src/memory.c"
+    ],
+    "directory": "/home/dethas/prog/atra",
+    "file": "/home/dethas/prog/atra/src/memory.c",
+    "output": "/home/dethas/prog/atra/bin/./src/memory.c.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-I./src",
+      "-Og",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-g",
+      "-std=c99",
+      "-c",
+      "-o",
+      "bin/./src/shader.c.o",
+      "src/shader.c"
+    ],
+    "directory": "/home/dethas/prog/atra",
+    "file": "/home/dethas/prog/atra/src/shader.c",
+    "output": "/home/dethas/prog/atra/bin/./src/shader.c.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-I./src",
+      "-Og",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-g",
+      "-std=c99",
+      "-c",
+      "-o",
+      "bin/./src/main.c.o",
+      "src/main.c"
+    ],
+    "directory": "/home/dethas/prog/atra",
+    "file": "/home/dethas/prog/atra/src/main.c",
+    "output": "/home/dethas/prog/atra/bin/./src/main.c.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-I./src",
+      "-Og",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-g",
+      "-std=c99",
+      "-c",
+      "-o",
+      "bin/./src/util.c.o",
+      "src/util.c"
+    ],
+    "directory": "/home/dethas/prog/atra",
+    "file": "/home/dethas/prog/atra/src/util.c",
+    "output": "/home/dethas/prog/atra/bin/./src/util.c.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-I./src",
+      "-Og",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-g",
+      "-std=c99",
+      "-c",
+      "-o",
+      "bin/./src/log.c.o",
+      "src/log.c"
+    ],
+    "directory": "/home/dethas/prog/atra",
+    "file": "/home/dethas/prog/atra/src/log.c",
+    "output": "/home/dethas/prog/atra/bin/./src/log.c.o"
+  }
+]

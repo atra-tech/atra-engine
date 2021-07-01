@@ -1,0 +1,7 @@
+-x
+c
+-I./src
+-Wall
+-Wextra
+-Wpedantic
+-std=c99

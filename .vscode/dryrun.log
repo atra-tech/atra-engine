@@ -1,0 +1,49 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/home/dethas/prog/atra'
+ 
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/network.c -o bin/./src/network.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/texture.c -o bin/./src/texture.c.o
+ 
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/font.c -o bin/./src/font.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/math.c -o bin/./src/math.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/gui.c -o bin/./src/gui.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/memory.c -o bin/./src/memory.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/core.c -o bin/./src/core.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/camera.c -o bin/./src/camera.c.o
+ 
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/utf.c -o bin/./src/utf.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/audio.c -o bin/./src/audio.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/shader.c -o bin/./src/shader.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/main.c -o bin/./src/main.c.o
+ 
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/gl.c -o bin/./src/gl.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/util.c -o bin/./src/util.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/model.c -o bin/./src/model.c.o
+ 
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/particle.c -o bin/./src/particle.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/physics.c -o bin/./src/physics.c.o
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/thread.c -o bin/./src/thread.c.o
+ 
+mkdir -p bin/./src/
+gcc -I./src -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99  -c src/log.c -o bin/./src/log.c.o
+gcc ./bin/./src/network.c.o ./bin/./src/texture.c.o ./bin/./src/font.c.o ./bin/./src/math.c.o ./bin/./src/gui.c.o ./bin/./src/memory.c.o ./bin/./src/core.c.o ./bin/./src/camera.c.o ./bin/./src/utf.c.o ./bin/./src/audio.c.o ./bin/./src/shader.c.o ./bin/./src/main.c.o ./bin/./src/gl.c.o ./bin/./src/util.c.o ./bin/./src/model.c.o ./bin/./src/particle.c.o ./bin/./src/physics.c.o ./bin/./src/thread.c.o ./bin/./src/log.c.o -o bin/atra-engine -lm -lSDL2 -lSDL2_image -lGL
+make: Leaving directory '/home/dethas/prog/atra'
+ 
