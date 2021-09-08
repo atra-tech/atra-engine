@@ -10,6 +10,7 @@
 #include "atra.h"
 
 #include <string.h>
+#include <SDL2/SDL.h>
 
 #ifdef _WIN32
     #include <windows.h>
@@ -21,17 +22,19 @@
 extern "C" {
 #endif
 
+static int rand_init = 0;
+
 /* Loads a file into memory as an array of bytes */
 ATRA_API
 i8 *
-atra_util_loadfile(const char *path)
+atra_util_loadfile(const char *path, size_t *size)
 {
     FILE *file = fopen(path, "rb");
-    int length;
+    size_t length;
     i8 *data;
 
     if (!file) {
-        atra_log_print(LOG_ERROR, "util: Failed to load file \"$s\": " \
+        atra_log_print(LOG_ERROR, "util: Failed to load file \"%s\": " \
                 "Unable to open file", path);
         return NULL;
     }
@@ -44,22 +47,26 @@ atra_util_loadfile(const char *path)
     data[length + 1] = EOF;
     fclose(file);
 
+    if (size) {
+        *size = length;
+    }
+
     return data;
 }
 
 /* Saves an array of bytes to a file */
 ATRA_API
 void
-atra_util_savefile(const char *path, const char *data, size_t nitems)
+atra_util_savefile(const char *path, const i8 *data, size_t size)
 {
     FILE *file = fopen(path, "wb");
 
     if (!file) {
-        atra_log_print(LOG_ERROR, "util: Failed to save file \"$s\": " \
+        atra_log_print(LOG_ERROR, "util: Failed to save file \"%s\": " \
                 "Unable to open file", path);
         return;
     }
-    fwrite(data, sizeof(char), nitems, file);
+    fwrite(data, sizeof(char), size, file);
     fclose(file);
 }
 
@@ -149,7 +156,12 @@ ATRA_API
 void
 atra_util_die(const char *msg)
 {
-    atra_log_print(LOG_FATAL, "A fatal error has occurred: %s", msg);
+    if (msg) {
+        atra_log_print(LOG_FATAL, "A fatal error has occurred: %s", msg);
+    } else {
+        atra_log_print(LOG_FATAL, "A fatal error has occurred: Terminating");
+    }
+    exit(EXIT_FAILURE);
 }
 
 /* Halts the engine and gracefully exits on memory allocation error */
@@ -159,8 +171,52 @@ atra_util_checkalloc(void *ptr)
 {
     if (ptr == NULL) {
         atra_util_die("Memory allocation error");
-        exit(EXIT_FAILURE);
     }
+}
+
+/* Prints SDL errors in a standardized fashion */
+ATRA_API
+void
+atra_util_sdl_printerror(void)
+{
+    atra_log_print(LOG_ERROR, "SDL error: %s", SDL_GetError());
+}
+
+/* Generates a pseudo-random 32-bit integer in range [min, max] */
+ATRA_API
+int
+atra_util_randomint(int min, int max)
+{
+    const int diff = max - min;
+
+    if (diff < 0) {
+        atra_log_print(LOG_WARN, "util: Intersecting random number bounds");
+    }
+
+    if (!rand_init) {
+        srand((unsigned) time(NULL));
+        rand_init = 1;
+    }
+    
+    return (rand() % diff) + min;
+}
+
+/* Generates a pseudo-random 32-bit floating point number in range [min, max] */
+ATRA_API
+float
+atra_util_randomfloat(float min, float max)
+{
+    const float diff = max - min;
+
+    if (diff < 0) {
+        atra_log_print(LOG_WARN, "util: Intersecting random number bounds");
+    }
+    if (!rand_init) {
+        srand((unsigned) time(NULL));
+        rand_init = 1;
+    }
+
+    return (diff * ((float)rand() / (float)RAND_MAX)) + min;
 }
 
 #ifdef __cplusplus

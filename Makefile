@@ -1,39 +1,77 @@
-TARGET_EXEC ?= atra-engine
+TARGET=atra-engine
 
-BUILD_DIR ?= ./bin
-SRC_DIRS ?= ./src
+CC=gcc
 
-SRCS := $(shell find $(SRC_DIRS) -name *.cpp -or -name *.c -or -name *.s)
-OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
-DEPS := $(OBJS:.o=.d)
+SRC=src
+OBJ=obj
+EXEC_SRC=exec
+BUILD_DIR=bin
 
-# LINUX
-CC := gcc
+SRCS=$(wildcard $(SRC)/*.c)
+OBJS=$(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(SRCS))
+EXEC_SRCS=$(wildcard $(EXEC_SRC)/*.c)
 
-INC_DIRS := $(shell find $(SRC_DIRS) -type d)
-INC_FLAGS := $(addprefix -I,$(INC_DIRS))
+TEST=test
+TESTS=$(wildcard $(TEST)/*.c)
+TESTBINS=$(patsubst $(TEST)/%.c, $(TEST)/bin/%, $(TESTS))
+TESTASMS=$(patsubst $(TEST)/bin/%, $(TEST)/asm/%.s, $(TESTBINS))
 
-LDFLAGS ?= -lm -lSDL2 -lSDL2_image -lGL
-CPPFLAGS ?= $(INC_FLAGS) -MP -MMD -Og -Wall -Wextra -Wpedantic -g -std=c99
+LIBDIR=lib
+LIB=$(LIBDIR)/atra.a
 
-$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
-	$(CC) $(OBJS) -o $@ $(LDFLAGS)
+INC_DIRS=$(shell find $(SRC) -type d)
+INC_FLAGS=$(addprefix -I,$(INC_DIRS))
 
-# assembly
-$(BUILD_DIR)/%.s.o: %.s
-	$(MKDIR_P) $(dir $@)
-	$(AS) $(ASFLAGS) -c $< -o $@
+LDFLAGS=-lm -ldl -lSDL2 -lSDL2_image -lGL
+CFLAGS=$(INC_FLAGS) -MP -MMD -O0 -Wall -Wextra -Wpedantic -g -std=c99
 
-# c source
-$(BUILD_DIR)/%.c.o: %.c
-	$(MKDIR_P) $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/$(TARGET): $(LIB) $(BUILD_DIR) $(EXEC_SRCS)
+	$(CC) $(CFLAGS) $(SRCS) $(EXEC_SRCS) -o $@ $(LDFLAGS)
 
-.PHONY: clean
+.PHONY: all release test clean
+
+all: $(LIB)
+
+release: CFLAGS=-Wall -O2 -DNDEBUG
+release: clean
+release: $(LIB)
+
+$(LIB): $(LIBDIR) $(OBJ) $(OBJS)
+	$(RM) $(LIB)
+	ar -cvrs $(LIB) $(OBJS)
+
+$(OBJ)/%.o: $(SRC)/%.c $(SRC)/%.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ)/%.o: $(SRC)/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(TEST)/bin:
+	mkdir $@
+
+$(TEST)/asm:
+	mkdir $@
+
+$(TEST)/bin/%: $(TEST)/%.c
+	$(CC) $(CFLAGS) $< $(OBJS) -o $@ $(LDFLAGS) -lcheck
+
+$(TEST)/asm/%.s: $(TEST)/%.c
+	$(CC) $(CFLAGS) -S $< $(OBJS) -o $@ $(LDFLAGS) -lcheck
+
+$(OBJ):
+	mkdir $@
+
+$(LIBDIR):
+	mkdir $@
+
+$(BUILD_DIR):
+	mkdir $@
+
+$(EXEC_SRC):
+	mkdir $@
+
+test: clean $(LIB) $(TEST)/bin $(TEST)/asm $(TESTBINS) $(TESTASMS) 
+	for test in $(TESTBINS) ; do ./$$test ; done
 
 clean:
-	$(RM) -r $(BUILD_DIR)
-
--include $(DEPS)
-
-MKDIR_P ?= mkdir -p
+	$(RM) -r $(LIB) $(OBJ) $(BUILD_DIR) $(TEST)/bin $(TEST)/asm

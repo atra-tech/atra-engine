@@ -10,6 +10,7 @@
 #ifndef ATRA_ENGINE_H
 #define ATRA_ENGINE_H
 
+#include "glad.h"
 #include "camera.h"
 #include "core.h"
 #include "gl.h"
@@ -23,6 +24,7 @@
 #include "font.h"
 #include "gui.h"
 #include "memory.h"
+#include "state.h"
 #include "network.h"
 #include "physics.h"
 #include "texture.h"

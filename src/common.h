@@ -18,6 +18,7 @@
 #include <stdint.h>
 #include <cglm/cglm.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 
 
 #if defined(_MSC_VER)
@@ -53,34 +54,44 @@
     #define PI 3.14159265358979323846
 #endif
 
-/* Used to silence unused variable warnings */
+#define BIT(b) (1 << (b))
+#define BIT_SET(f, b) ((f) |= (b))
+#define BIT_CLR(f, b) ((f) &= ~(b))
+#define BIT_TOG(f, b) ((f) ^= (b))
+#define BIT_CHK(f, b) ((f) & (b))
+
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
+/* Silences unused variable warnings */
 #define ATRA_UNUSED(x) (void)(x)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+typedef int8_t      i8;
+typedef int16_t     i16;
+typedef int32_t     i32;
+typedef int64_t     i64;
 
-typedef int8_t  i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
+typedef uint8_t     u8;
+typedef uint16_t    u16;
+typedef uint32_t    u32;
+typedef uint64_t    u64;
 
-typedef uint8_t  u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
+typedef float       f32;
+typedef double      f64;
 
 typedef unsigned char   uchar;
 typedef unsigned short  ushort;
 typedef unsigned int    uint;
 typedef unsigned long   ulong;
 
+typedef int ivec2[2];
+
 typedef struct Quad {
     float x, y, w, h;
 } Quad;
 
-#ifdef __cplusplus
-}
-#endif
+typedef struct IQuad {
+    int x, y, w, h;
+} IQuad;
 
 #endif /* ATRA_COMMON_H */

@@ -59,6 +59,7 @@ enum log_fgcolor {
 
 /* Struct for keeping record of entry data */
 typedef struct LogRecord {
+    int ready;
     char **entries;         /* Stored record of log entries */
     size_t entry_count;     /* Number of entries */
     size_t size;            /* Size cap of entry list */
@@ -89,7 +90,7 @@ static const int log_mode_colors[] = {
 static const char time_format[] = "[%02d:%02d:%02d] ";
 static const size_t time_size = 11;  /* Timestamp output will always be this size */
 
-static LogRecord log;
+static LogRecord log_rec = {0};
 
 
 /* Initialise the logging system, allocating space for log entries */
@@ -97,17 +98,18 @@ ATRA_API
 void
 atra_log_start(size_t size, const char *savepath)
 {
-    log.entries = malloc(size * sizeof(char *));
-    log.entry_count = 0;
-    log.size = size;
-    log.autosave = savepath != NULL;
+    log_rec.entries = malloc(size * sizeof(char *));
+    log_rec.entry_count = 0;
+    log_rec.size = size;
+    log_rec.autosave = savepath != NULL;
 
-    if (log.autosave) {
+    if (log_rec.autosave) {
         atra_util_deletefile(savepath);
-        log.savepath = atra_util_strdup(savepath);
+        log_rec.savepath = atra_util_strdup(savepath);
     } else {
-        log.savepath = NULL;
+        log_rec.savepath = NULL;
     }
+    log_rec.ready = 1;
 }
 
 /* Shutdown and clean up logging system, saving if autosave is enabled */
@@ -117,14 +119,15 @@ atra_log_stop(void)
 {
     size_t i;
 
-    if (log.autosave) {
-        atra_log_save(log.savepath, 1);
+    if (log_rec.autosave) {
+        atra_log_save(log_rec.savepath, 1);
     }
 
-    for (i = 0; i < log.entry_count; i++) {
-        free(log.entries[i]);
+    for (i = 0; i < log_rec.entry_count; i++) {
+        free(log_rec.entries[i]);
     }
-    free(log.entries);
+    free(log_rec.entries);
+    log_rec.ready = 0;
 }
 
 /* Writes a log entry to the log record and outputs to terminal. */
@@ -137,6 +140,15 @@ atra_log_print(int mode, const char *msg, ...)
     time_t rawtime;
     struct tm *tinfo;
     char *head, *output = NULL;
+
+    if (!log_rec.ready) {
+        LOG_ATTR(ATTR_BOLDON);
+        LOG_ATTR(FGCOLOR_YELLOW);
+        printf("[WARN] Logging system was invoked before initialization. " \
+                "Initializing with default arguments...\n");
+        LOG_ATTR(ATTR_NONE);
+        atra_log_start(256, NULL);
+    }
 
     /* Obtain formatted timestamp */
     time(&rawtime);
@@ -169,14 +181,15 @@ atra_log_print(int mode, const char *msg, ...)
     LOG_ATTR(ATTR_BOLDON);
     LOG_ATTR(log_mode_colors[mode]);
     printf("%s\n", output);
+    LOG_ATTR(FGCOLOR_DEFAULT);
     LOG_ATTR(ATTR_NONE);
 
     /* Save buffer to log record */
-    log.entries[log.entry_count++] = output;
+    log_rec.entries[log_rec.entry_count++] = output;
 
-    if (log.entry_count >= log.size) {
-        if (log.autosave) {
-            atra_log_save(log.savepath, 1);
+    if (log_rec.entry_count >= log_rec.size) {
+        if (log_rec.autosave) {
+            atra_log_save(log_rec.savepath, 1);
         }
         atra_log_clear();
     }
@@ -189,10 +202,10 @@ atra_log_clear(void)
 {
     size_t i;
 
-    for (i = 0; i < log.entry_count; i++) {
-        free(log.entries[i]);
+    for (i = 0; i < log_rec.entry_count; i++) {
+        free(log_rec.entries[i]);
     }
-    log.entry_count = 0;
+    log_rec.entry_count = 0;
 }
 
 /* Saves the log to a file, with the option to append to previous writes */
@@ -214,10 +227,10 @@ atra_log_save(const char *path, int append)
                 "Unable to open log file", path);
         return;
     } else {
-        for (i = 0; i < log.size; i++) {
-            if (log.entries[i] == NULL)
+        for (i = 0; i < log_rec.size; i++) {
+            if (log_rec.entries[i] == NULL)
                 break;
-            fprintf(file, "%s\n", log.entries[i]);
+            fprintf(file, "%s\n", log_rec.entries[i]);
         }
         fprintf(file, "\n");
     }

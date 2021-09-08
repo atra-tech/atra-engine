@@ -17,11 +17,15 @@
 extern "C" {
 #endif
 
-/* Loads a file into memory as an array of bytes */
-ATRA_API i8 * atra_util_loadfile(const char *path);
+/* TODO: Clean up and categorize functions */
+/* TODO: Add more cross-platform OS interactions, esp. filesystem utils */
+
+/* Loads a file into memory as an array of bytes.
+ * Optionally returns size of data. Set `size` to NULL if unwanted. */
+ATRA_API i8 * atra_util_loadfile(const char *path, size_t *size);
 
 /* Saves an array of bytes to a file */
-ATRA_API void atra_util_savefile(const char *path, const char *data, size_t nitems);
+ATRA_API void atra_util_savefile(const char *path, const i8 *data, size_t size);
 
 /* Returns a List of strings, containing the names of all files in the given
  * directory.  Gives the option of filtering by file extention. */
@@ -39,6 +43,15 @@ ATRA_API void atra_util_die(const char *msg);
 
 /* Halts the engine and gracefully exits on memory allocation error */
 ATRA_API void atra_util_checkalloc(void *ptr);
+
+/* Prints SDL errors in a standardized fashion */
+ATRA_API void atra_util_sdl_printerror(void);
+
+/* Generates a pseudo-random 32-bit integer in range [min, max] */
+ATRA_API int atra_util_randomint(int min, int max);
+
+/* Generates a pseudo-random 32-bit floating point number in range [min, max] */
+ATRA_API float atra_util_randomfloat(float min, float max);
 
 #ifdef __cplusplus
 }
