@@ -13,6 +13,7 @@
 #define ATRA_GL_H
 
 #include "common.h"
+#include "camera.h"
 
 #define ATRA_OPENGL_VERSION_21
 
@@ -260,6 +261,9 @@ ATRA_API void atra_gl_detectextensions(void);
 /* Checks for limits to some GPU capabilities, such as max texture size */
 ATRA_API void atra_gl_detectlimits(void);
 
+/* Returns a pointer to the internal GL state */
+ATRA_API GLState * atra_gl_getinternalstate(void);
+
 
 /*
  *  Render batch functions
@@ -316,6 +320,18 @@ ATRA_API void atra_gl_begin(int mode);
 
 /* End immediate drawing mode */
 ATRA_API void atra_gl_end(void);
+
+/* Initialises internal matrices for 2D rendering using a camera */
+ATRA_API void atra_gl_begin2D(Camera *cam);
+
+/* Cleans up matrices after 2D rendering */
+ATRA_API void atra_gl_end2D(void);
+
+/* Initialises internal matrices for 3D rendering using a camera */
+ATRA_API void atra_gl_begin3D(Camera *cam);
+
+/* Cleans up matrices after 3D rendering */
+ATRA_API void atra_gl_end3D(void);
 
 /* Define a 2D vertex position (int) */
 ATRA_API void atra_gl_vertex2i(int x, int y);

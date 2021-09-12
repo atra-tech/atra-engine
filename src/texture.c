@@ -429,8 +429,8 @@ atra_texture_loadfile(const char *path)
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 1);
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -460,8 +460,8 @@ atra_texture_loadimage(Image *image)
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, tex.mipmaps);
     
     if (tex.mipmaps > 1) {
@@ -496,7 +496,35 @@ ATRA_API
 RenderTexture
 atra_texture_loadrendertex(int width, int height)
 {
+    RenderTexture tex = {0};
 
+    tex.id = atra_gl_fbo_create();
+
+    if (tex.id > 0) {
+        atra_gl_fbo_enable(tex.id);
+
+        tex.color.id = atra_gl_tex_create(NULL, width, height, 1);
+        tex.color.width = width;
+        tex.color.height = height;
+        tex.color.mipmaps = 1;
+
+        tex.depth.id = atra_gl_tex_createdepth(width, height, 1);
+        tex.depth.width = width;
+        tex.depth.height = height;
+        tex.depth.mipmaps = 1;
+
+        atra_gl_fbo_attach(tex.id, tex.color.id,
+                ATRA_ATTACHMENT_COLOR_CHANNEL0, ATRA_ATTACHMENT_TEXTURE_2D, 0);
+        atra_gl_fbo_attach(tex.id, tex.depth.id,
+                ATRA_ATTACHMENT_DEPTH, ATRA_ATTACHMENT_RENDERBUFFER, 0);
+        
+        if (atra_gl_fbo_iscomplete(tex.id)) {
+            /* TODO: Put some message here */
+        }
+        atra_gl_fbo_disable();
+    }
+
+    return tex;
 }
 
 /* Removes a texture of the GPU and deletes it */
@@ -514,10 +542,9 @@ atra_texture_destroyrendertex(RenderTexture *tex)
 {
     int i;
 
-    for (i = 0; i < ATRA_TEXTURE_TOTAL; i++) {
-        if (BIT_CHK(tex->buffer_flags, 1 << i)) {
-            glDeleteTextures(1, &tex->buffers[i].id);
-        }
+    if (tex->id > 0) {
+        atra_gl_tex_delete(tex->color.id);
+        atra_gl_fbo_delete(tex->id);
     }
 }
 

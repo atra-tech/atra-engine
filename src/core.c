@@ -77,6 +77,7 @@ typedef struct Input {
         Cursor *cursor;                     /* SDL system cursor handle */
         int cursor_style;                   /* Current mouse cursor type */
         int cursor_hidden;                  /* True when mouse is hidden */
+        int cursor_locked;                  /* True when the mouse is locked */
         int cursor_inwindow;                /* True when mouse is in window */
 
         int buttons_curr[MOUSE_MAXBUTTONS]; /* Mouse button state this frame */
@@ -286,7 +287,6 @@ atra_context_init(int width, int height)
     /* Match window to monitor display settings if window dimensions are 0 */
     if (window.screen.w == 0) window.screen.w = window.monitor.w;
     if (window.screen.h == 0) window.screen.h = window.monitor.h;
-
 
     /* Check window flags */
     if (BIT_CHK(window.flags, ATRA_WINDOW_FULLSCREEN)) {
@@ -602,6 +602,14 @@ atra_window_swapbuffers(void)
     SDL_GL_SwapWindow(window.window);
 }
 
+/* Returns a pointer to the scaling matrix of the window */
+ATRA_API
+mat4 *
+atra_window_getscreenscalemat(void)
+{
+    return &window.screen_scale;
+}
+
 /* Returns the width of a specified monitor */
 ATRA_API
 int
@@ -681,10 +689,21 @@ atra_input_update(void)
     input.key.textqueue_size = 0;
     atra_key_getpressed();
     atra_key_gettext();
+    
+    /* Update frame dependent variables */
+    input.mouse.pos_prev[0] = input.mouse.pos_curr[0];
+    input.mouse.pos_prev[1] = input.mouse.pos_curr[1];
 
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
             window.should_close = 1;
+        } else if (event.type == SDL_WINDOWEVENT) {
+            if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+                window.resized = 1;
+                window.screen.w = event.window.data1;
+                window.screen.h = event.window.data2;
+                glViewport(0, 0, window.screen.w, window.screen.h);
+            }
         }
         atra_key_update(&event);
         atra_mouse_update(&event);
@@ -705,12 +724,12 @@ atra_key_update(Event *e)
     i32 key = e->key.keysym.scancode;
 
     switch (e->type) {
-    case ATRA_KEY_DOWN:
+    case ATRA_KEYDOWN:
         input.key.keystate_prev[key] = input.key.keystate_curr[key];
         input.key.keystate_curr[key] = 1;
         atra_key_pushkeyevent(key);
         break;
-    case ATRA_KEY_UP:
+    case ATRA_KEYUP:
         input.key.keystate_prev[key] = input.key.keystate_curr[key];
         input.key.keystate_curr[key] = 0;
         break;
@@ -1119,8 +1138,12 @@ ATRA_API
 void
 atra_mouse_getposchange(int *x, int *y)
 {
-    *x = input.mouse.pos_curr[0] - input.mouse.pos_prev[0];
-    *y = input.mouse.pos_curr[1] - input.mouse.pos_prev[1];
+    if (input.mouse.cursor_locked) {
+        SDL_GetRelativeMouseState(x, y);
+    } else {
+        *x = input.mouse.pos_curr[0] - input.mouse.pos_prev[0];
+        *y = input.mouse.pos_curr[1] - input.mouse.pos_prev[1];
+    }
 }
 
 /* Sets the mouse cursor position to (x, y) */
@@ -1154,6 +1177,26 @@ atra_mouse_setcursor(i32 cursor)
         atra_util_sdl_printerror();
     }
     SDL_SetCursor(input.mouse.cursor);
+}
+
+/* Hides the mouse cursor and locks it to the centre of the screen */
+ATRA_API
+void
+atra_mouse_lock(void)
+{
+    input.mouse.cursor_hidden = 1;
+    input.mouse.cursor_locked = 1;
+    SDL_SetRelativeMouseMode(1);
+}
+
+/* Shows the mouse cursor, freeing it from its locked state */
+ATRA_API
+void
+atra_mouse_unlock(void)
+{
+    input.mouse.cursor_hidden = 0;
+    input.mouse.cursor_locked = 0;
+    SDL_SetRelativeMouseMode(0);
 }
 
 /*

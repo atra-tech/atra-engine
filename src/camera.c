@@ -32,10 +32,12 @@ atra_camera_create(int type, int width, int height)
     cam.pos[2] = 0.0f;
 
     cam.rot[0] = 0.0f;
-    cam.rot[1] = 0.0f;
+    cam.rot[1] = PI;    /* Turn to face camera in -Z direction */
     cam.rot[2] = 0.0f;
 
+    atra_camera_updatevectors(&cam);
     atra_camera_updateviewmat(&cam);
+    atra_camera_updateprojmat(&cam);
 
     return cam;
 }
@@ -91,13 +93,13 @@ ATRA_API
 void
 atra_camera_updatevectors(Camera *cam)
 {
-    cam->dir[0] = SDL_cosf(cam->rot[0]) * SDL_sinf(cam->rot[1]);
-    cam->dir[1] = SDL_sinf(cam->rot[0]);
-    cam->dir[2] = SDL_cosf(cam->rot[0]) * SDL_cosf(cam->rot[1]);
+    cam->dir[0] = cosf(cam->rot[0]) * sinf(cam->rot[1]);
+    cam->dir[1] = sinf(cam->rot[0]);
+    cam->dir[2] = cosf(cam->rot[0]) * cosf(cam->rot[1]);
 
-    cam->right[0] = SDL_sinf(cam->rot[1] - (PI / 2.0f));
+    cam->right[0] = sinf(cam->rot[1] - (PI / 2.0f));
     cam->right[1] = 0.0f;
-    cam->right[2] = SDL_cosf(cam->rot[1] - (PI / 2.0f));
+    cam->right[2] = cosf(cam->rot[1] - (PI / 2.0f));
 
     glm_vec3_cross(cam->right, cam->dir, cam->up);
 }
@@ -107,10 +109,8 @@ ATRA_API
 void
 atra_camera_updateviewmat(Camera *cam)
 {
-    vec3 centre;
-
-    glm_vec3_add(cam->pos, cam->dir, centre);
-    glm_lookat(cam->pos, centre, cam->up, cam->view);
+    glm_vec3_add(cam->pos, cam->dir, cam->target);
+    glm_lookat(cam->pos, cam->target, cam->up, cam->view);
 }
 
 /* Updates a camera's projection matrix */

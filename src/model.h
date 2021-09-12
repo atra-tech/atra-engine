@@ -20,6 +20,16 @@
 #include "camera.h"
 
 #define ATRA_MAX_MESH_VERTEX_BUFFERS    8
+#define ATRA_DEFAULT_MESH_SIZE          8
+
+enum buffer_flags {
+    ATRA_MESH_BUFFER_POSITION   = BIT(0),
+    ATRA_MESH_BUFFER_TEXCOORD   = BIT(1),
+    ATRA_MESH_BUFFER_NORMALS    = BIT(2),
+    ATRA_MESH_BUFFER_COLORS     = BIT(3),
+    ATRA_MESH_BUFFER_TANGENTS   = BIT(4),
+    ATRA_MESH_BUFFER_TEXCOORD2  = BIT(5)
+};
 
 /* A texture which is used to render an object. */
 typedef struct MaterialMap {
@@ -35,19 +45,34 @@ typedef struct Material {
     int map_flags;                          /* Bitfield of which textures are enabled */
 } Material;
 
+/* Info  */
+typedef struct IMMeshInfo {
+    int limit;              /* Current maximum number of primitives */
+    int mode;               /* Drawing mode */
+    int prim_size;          
+
+    int vert_count;
+    int uv_count;
+    int norm_count;
+    int color_count;
+    int tangent_count;
+    int uv2_count; 
+} IMMeshInfo;
+
 /* Vertex data and OpenGL vertex array/buffers */
 typedef struct Mesh {
     int vert_count;         /* Number of vertices in mesh */
     int tri_count;          /* Number of triangles in mesh */
+    
+    IMMeshInfo *im;         /* Mesh data unique to immediate-style drawing */
 
-    List verts;             /* f32: Vertices */
-    List uvs;               /* f32: Vertex UV texture coordinates */
-    List uvs2;              /* f32: Vertex secondary UV texture coordinates */
-    List norms;             /* f32: Vertex normal vectors */
-    List tangents;          /* f32: Tangents */
-    List bitangents;        /* f32: Bitangents */
-    List colors;            /* u8:  Vertex color modifier */
-    List indices;           /* u16: Vertex indices */
+    float *verts;           /* f32: Vertices */
+    float *uvs;             /* f32: Vertex UV texture coordinates */
+    float *uvs2;            /* f32: Vertex secondary UV texture coordinates */
+    float *norms;           /* f32: Vertex normal vectors */
+    float *tangents;        /* f32: Tangents */
+    u8 *colors;             /* u8:  Vertex color modifier */
+    uint *indices;          /* u32: Vertex indices */
 
     float *anim_verts;      /* Animated vertex positions (post-transform) */
     float *anim_norms;      /* Animated normals (post-transform) */
@@ -133,8 +158,63 @@ ATRA_API void atra_model_wiredrawext(Model *model, vec3 pos, vec3 rot_axis,
  *  Mesh functions
  */
 
-/* Creates a new, empty mesh */
-ATRA_API Mesh atra_mesh_create(void);
+/* Sets up a new mesh to be manually drawn to in an immediate-mode style.
+ * Sets the new mesh as the currently active mesh.
+ * 
+ * NOTE: Vertex position and texture UVs are enabled by default.
+ *       A vertex position must be specified BEFORE its other attributes.
+ *       The mesh expects all enabled buffers to have the same number of entries. 
+ *       Failing to meet these requirements may cause unexpected behaviour. */
+ATRA_API Mesh atra_mesh_begin(int mode, int buffer_flags);
+
+/* Finalises the currently active mesh and uploads its data to the GPU */
+ATRA_API void atra_mesh_end(int dynamic);
+
+/* Adds a vertex to the current mesh */
+ATRA_API void atra_mesh_vertex3f(float x, float y, float z);
+
+/* Adds a vertex to the current mesh (vec3 argument) */
+ATRA_API void atra_mesh_vertexv(const vec3 pos);
+
+/* Adds a texture UV coordinate to the current mesh */
+ATRA_API void atra_mesh_texcoord2f(float x, float y);
+
+/* Adds a texture UV coordinate to the current mesh (vec2 argument) */
+ATRA_API void atra_mesh_texcoordv(const vec2 uv);
+
+/* Adds a vertex normal to the current mesh */
+ATRA_API void atra_mesh_normal3f(float x, float y, float z);
+
+/* Adds a vertex normal to the current mesh (vec3 argument) */
+ATRA_API void atra_mesh_normalv(const vec3 normal);
+
+/* Adds a vertex color to the current mesh */
+ATRA_API void atra_mesh_color4ub(u8 r, u8 g, u8 b, u8 a);
+
+/* Adds a vertex color to the current mesh (4-array argument) */
+ATRA_API void atra_mesh_colorv(const u8 *color);
+
+/* Adds a vertex tangent to the current mesh */
+ATRA_API void atra_mesh_tangent4f(float x, float y, float z, float w);
+
+/* Adds a vertex tangent to the current mesh (vec4 argument) */
+ATRA_API void atra_mesh_tangentv(const vec4 tangent);
+
+/* Adds a secondary texture UV to the current mesh */
+ATRA_API void atra_mesh_texcoord22f(float x, float y);
+
+/* Adds a secondary texture UV to the current mesh (vec2 argument) */
+ATRA_API void atra_mesh_texcoord2v(const vec2 uv2);
+
+/* Sets the currently active mesh */
+ATRA_API void atra_mesh_setactive(Mesh *mesh);
+
+/* Returns a pointer to the currently active mesh */
+ATRA_API Mesh * atra_mesh_getactive(void);
+
+/*
+ *  Non-immediate mesh functions
+ */
 
 /* Deletes mesh data from both the CPU and GPU */
 ATRA_API void atra_mesh_delete(Mesh *mesh);

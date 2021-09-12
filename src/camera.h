@@ -12,9 +12,9 @@
 #ifndef ATRA_CAMERA_H
 #define ATRA_CAMERA_H
 
-#define ATRA_CAMERA_DEFAULT_FOV     70.0f
-#define ATRA_CAMERA_DEFAULT_ZOOM    1.0f
-#define ATRA_CAMERA_NEAR_PLANE      0.1f
+#define ATRA_CAMERA_DEFAULT_FOV     PI / 2.0f;
+#define ATRA_CAMERA_DEFAULT_ZOOM    2.0f
+#define ATRA_CAMERA_NEAR_PLANE      0.01f
 #define ATRA_CAMERA_FAR_PLANE       1000.0f
 
 #include "common.h"
@@ -29,7 +29,7 @@ typedef struct Camera {
     int width;      /* Width of camera view */
     int height;     /* Height of camera view */
     
-    float fov;      /* Y-axis field of view */
+    float fov;      /* Y-axis field of view angle (radians) */
     float zoom;     /* Camera zoom modifier (useful for orthographic view) */
     
     vec3 pos;       /* Camera world-space position */

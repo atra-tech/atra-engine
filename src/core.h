@@ -312,6 +312,9 @@ ATRA_API int atra_window_getheight(void);
 /* Swaps the front and back buffer */
 ATRA_API void atra_window_swapbuffers(void);
 
+/* Returns a pointer to the scaling matrix of the window */
+ATRA_API mat4 * atra_window_getscreenscalemat(void);
+
 /* Returns the width of a specified monitor */
 ATRA_API int atra_monitor_getwidth(void);
 

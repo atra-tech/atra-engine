@@ -11,7 +11,7 @@
 #ifndef ATRA_COMMON_H
 #define ATRA_COMMON_H
 
-#define ATRA_VERSION "DEV 0.1.4"
+#define ATRA_VERSION "DEV 0.1.6"
 
 #include "glad.h"
 
@@ -62,6 +62,9 @@
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
+#define DEG_TO_RAD(x) ((x) * (PI / 180))
+#define RAD_TO_DEG(x) (((x) / PI) * 180)
 
 /* Silences unused variable warnings */
 #define ATRA_UNUSED(x) (void)(x)

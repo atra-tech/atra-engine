@@ -61,9 +61,9 @@ typedef struct Texture {
 
 /* Render texture (FBO) abstraction */
 typedef struct RenderTexture {
-    uint id;                                /* FBO ID */
-    Texture buffers[ATRA_TEXTURE_TOTAL];    /* G-buffer array */
-    int buffer_flags;                       /* Bitfield of which G-buffers are enabled*/
+    uint id;            /* FBO ID */
+    Texture color;      /* Color attachment texture */        
+    Texture depth;      /* Depth attachment texture */
 } RenderTexture;
 
 /* An abstraction of OpenGL's texture arrays.  Can replace texture atlases */

@@ -77,10 +77,7 @@ atra_gl_init(int width, int height)
     gl_state.fbuffer_width = width;
     gl_state.fbuffer_height = height;
 
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
-    glDebugMessageCallbackARB(MessageCallback, 0);
-
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClearDepth(1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
@@ -121,6 +118,14 @@ atra_gl_detectlimits(void)
 
 }
 
+/* Returns a pointer to the internal GL state */
+ATRA_API
+GLState *
+atra_gl_getinternalstate(void)
+{
+    return &gl_state;
+}
+
 
 /*
  *  Render batch functions
@@ -157,7 +162,7 @@ atra_gl_batch_create(int num_buffers, int buffer_elems)
         k = 0;
 
         /* Initialise indices */
-        for (int j = 0; j < 6 * buffer_elems; j += 6) {
+        for (j = 0; j < 6 * buffer_elems; j += 6) {
             batch.vbuffer[i].indices[j + 0] = 4 * k + 0;
             batch.vbuffer[i].indices[j + 1] = 4 * k + 1;
             batch.vbuffer[i].indices[j + 2] = 4 * k + 2;
@@ -369,13 +374,13 @@ atra_gl_batch_draw(RenderBatch *batch)
 
         for (i = 0; i < ATRA_DEFAULT_BATCH_MAX_TEXTURE_UNITS; i++) {
             if (gl_state.active_tex_ids[i] > 0) {
-                atra_gl_tex_setactiveunit(GL_TEXTURE0 + 1 + i);
+                atra_gl_tex_setactiveunit(1 + i);
                 atra_gl_tex_enable(gl_state.active_tex_ids[i]);
             }
         }
         
         /* Activate default texture */
-        atra_gl_tex_setactiveunit(GL_TEXTURE0);
+        atra_gl_tex_setactiveunit(0);
 
         for (i = 0, vertex_offset = 0; i < batch->draw_count; i++) {
             atra_gl_tex_enable(batch->draws[i].tex_id);
@@ -663,6 +668,68 @@ atra_gl_end(void)
         atra_gl_batch_draw(current_batch);
     }
 }
+
+/* Initialises internal matrices for 2D rendering using a camera */
+ATRA_API
+void
+atra_gl_begin2D(Camera *cam)
+{
+    atra_gl_batch_drawactive();
+
+    atra_gl_loadidentity();
+    atra_gl_multmatrix(cam->proj);
+    atra_gl_multmatrix(*atra_window_getscreenscalemat());
+}
+
+/* Cleans up matrices after 2D rendering */
+ATRA_API
+void
+atra_gl_end2D(void)
+{
+    atra_gl_batch_drawactive();
+
+    atra_gl_loadidentity();
+    atra_gl_multmatrix(*atra_window_getscreenscalemat());
+}
+
+/* Initialises internal matrices for 3D rendering using a camera */
+ATRA_API
+void
+atra_gl_begin3D(Camera *cam)
+{
+    atra_gl_batch_drawactive();
+
+    atra_gl_matrixmode(ATRA_PROJECTION);
+    atra_gl_pushmatrix();
+    atra_gl_loadidentity();
+
+    atra_gl_multmatrix(cam->proj);
+
+    atra_gl_matrixmode(ATRA_MODELVIEW);
+    atra_gl_loadidentity();
+
+    atra_gl_multmatrix(cam->view);
+
+    atra_gl_enabledepthtest();
+}
+
+/* Cleans up matrices after 3D rendering */
+ATRA_API
+void
+atra_gl_end3D(void)
+{
+    atra_gl_batch_drawactive();
+
+    atra_gl_matrixmode(ATRA_PROJECTION);
+    atra_gl_popmatrix();
+
+    atra_gl_matrixmode(ATRA_MODELVIEW);
+    atra_gl_loadidentity();
+
+    atra_gl_multmatrix(*atra_window_getscreenscalemat());
+    atra_gl_disabledepthtest();
+}
+
 
 /* Define a 2D vertex position (int) */
 ATRA_API
@@ -1077,6 +1144,37 @@ void
 atra_gl_vao_setattribdivisor(uint index, int divisor)
 {
     glVertexAttribDivisor(index, divisor);
+}
+
+/* Sets the vertex attribute default value */
+ATRA_API
+void
+atra_gl_vao_setattribdefault(int loc, const void *data, int type, int count)
+{
+    switch (type) {
+    case ATRA_SHADER_ATTRIB_FLOAT:
+        if (count == 1) {
+            glVertexAttrib1fv(loc, data);
+        }
+        break;
+    case ATRA_SHADER_ATTRIB_VEC2:
+        if (count == 2) {
+            glVertexAttrib2fv(loc, data);
+        }
+        break;
+    case ATRA_SHADER_ATTRIB_VEC3:
+        if (count == 3) {
+            glVertexAttrib3fv(loc, data);
+        }
+        break;
+    case ATRA_SHADER_ATTRIB_VEC4:
+        if (count == 4) {
+            glVertexAttrib4fv(loc, data);
+        }
+        break;
+    default:
+        atra_log_print(LOG_WARN, "gl: vao: Invalid attribute data type");
+    }
 }
 
 /* Draws the current vertex array */
@@ -1613,9 +1711,9 @@ atra_gl_shader_loaddefault(void)
     const char *def_vshader_code =
 #if defined(ATRA_OPENGL_VERSION_21)
     "#version 120                       \n"
-    "attribute vec3 vertexPosition;     \n"
-    "attribute vec2 vertexTexCoord;     \n"
-    "attribute vec4 vertexColor;        \n"
+    "attribute vec3 vert_pos;     \n"
+    "attribute vec2 vert_uv;     \n"
+    "attribute vec4 vert_color;        \n"
     "varying vec2 fragTexCoord;         \n"
     "varying vec4 fragColor;            \n"
 #elif defined(ATRA_OPENGL_VERSION_33)
@@ -1626,12 +1724,15 @@ atra_gl_shader_loaddefault(void)
     "out vec2 fragTexCoord;             \n"
     "out vec4 fragColor;                \n"
 #endif
+    "uniform mat4 viewmat;              \n"
+    "uniform mat4 projmat;              \n"
+    "uniform mat4 modelmat;             \n"
     "uniform mat4 mvp;                  \n"
     "void main()                        \n"
     "{                                  \n"
-    "    fragTexCoord = vertexTexCoord; \n"
-    "    fragColor = vertexColor;       \n"
-    "    gl_Position = mvp*vec4(vertexPosition, 1.0); \n"
+    "    fragTexCoord = vert_uv; \n"
+    "    fragColor = vert_color;       \n"
+    "    gl_Position = mvp * vec4(vert_pos, 1.0); \n"
     "}                                  \n";
 
     const char *def_fshader_code =
@@ -1639,12 +1740,12 @@ atra_gl_shader_loaddefault(void)
     "#version 120                       \n"
     "varying vec2 fragTexCoord;         \n"
     "varying vec4 fragColor;            \n"
-    "uniform sampler2D texture0;        \n"
-    "uniform vec4 colDiffuse;           \n"
+    "uniform sampler2D albedo_map;      \n"
+    "uniform vec4 color;                \n"
     "void main()                        \n"
     "{                                  \n"
-    "    vec4 texelColor = texture2D(texture0, fragTexCoord); \n"
-    "    gl_FragColor = texelColor*colDiffuse*fragColor;      \n"
+    "    vec4 texelColor = texture2D(albedo_map, fragTexCoord); \n"
+    "    gl_FragColor = texelColor * color * fragColor;   \n"
     "}                                  \n";
 #elif defined(ATRA_OPENGL_VERSION_33)
     "#version 330       \n"
@@ -1666,13 +1767,16 @@ atra_gl_shader_loaddefault(void)
     gl_state.def_shader_id = atra_gl_shader_link(gl_state.def_vshader_id, gl_state.def_fshader_id);
 
     if (gl_state.def_shader_id > 0) {
-        gl_state.def_shader_locs[ATRA_SHADER_LOC_V_POSITION] = glGetAttribLocation(gl_state.def_shader_id, "vertexPosition");
-        gl_state.def_shader_locs[ATRA_SHADER_LOC_V_TEXCOORD] = glGetAttribLocation(gl_state.def_shader_id, "vertexTexCoord");
-        gl_state.def_shader_locs[ATRA_SHADER_LOC_V_COLOR]    = glGetAttribLocation(gl_state.def_shader_id, "vertexColor");
+        gl_state.def_shader_locs[ATRA_SHADER_LOC_V_POSITION] = glGetAttribLocation(gl_state.def_shader_id, "vert_pos");
+        gl_state.def_shader_locs[ATRA_SHADER_LOC_V_TEXCOORD] = glGetAttribLocation(gl_state.def_shader_id, "vert_uv");
+        gl_state.def_shader_locs[ATRA_SHADER_LOC_V_COLOR]    = glGetAttribLocation(gl_state.def_shader_id, "vert_color");
 
         gl_state.def_shader_locs[ATRA_SHADER_LOC_M_MVP] = glGetUniformLocation(gl_state.def_shader_id, "mvp");
-        gl_state.def_shader_locs[ATRA_SHADER_LOC_COLOR_DIFFUSE] = glGetUniformLocation(gl_state.def_shader_id, "colDiffuse");
-        gl_state.def_shader_locs[ATRA_SHADER_LOC_TEX_ALBEDO] = glGetUniformLocation(gl_state.def_shader_id, "texture0");
+        gl_state.def_shader_locs[ATRA_SHADER_LOC_M_VIEW] = glGetUniformLocation(gl_state.def_shader_id, "viewmat");
+        gl_state.def_shader_locs[ATRA_SHADER_LOC_M_PROJ] = glGetUniformLocation(gl_state.def_shader_id, "projmat");
+        gl_state.def_shader_locs[ATRA_SHADER_LOC_M_MODEL] = glGetUniformLocation(gl_state.def_shader_id, "modelmat");
+        gl_state.def_shader_locs[ATRA_SHADER_LOC_COLOR_DIFFUSE] = glGetUniformLocation(gl_state.def_shader_id, "color");
+        gl_state.def_shader_locs[ATRA_SHADER_LOC_TEX_ALBEDO] = glGetUniformLocation(gl_state.def_shader_id, "albedo_map");
     } else {
         atra_log_print(LOG_WARN, "gl: shader: failed to load default shader");
     }
