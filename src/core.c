@@ -195,8 +195,10 @@ ATRA_API
 void
 atra_engine_stop(void)
 {
-    atra_gl_stop();
+    atra_log_print(LOG_INFO, "Stopping Atra Engine");
+
     atra_state_stop();
+    atra_gl_stop();
     atra_log_stop();
     atra_mempool_stop();
 
@@ -371,6 +373,8 @@ atra_context_init(int width, int height)
             atra_util_sdl_printerror();
         }
     }
+
+    atra_window_setupviewport(window.screen.w, window.screen.h);
 }
 
 /* Returns 1 if the window should close */
@@ -570,6 +574,26 @@ atra_window_setsize(int w, int h)
     SDL_SetWindowSize(window.window, w, h);
 }
 
+/* Set viewport for a given width and height */
+ATRA_API
+void
+atra_window_setupviewport(int width, int height)
+{
+    atra_gl_viewport(
+        window.render_offset.x / 2,
+        window.render_offset.y / 2,
+        window.screen.w - window.render_offset.x,
+        window.screen.h - window.render_offset.y
+    );
+
+    atra_gl_matrixmode(ATRA_PROJECTION);
+    atra_gl_loadidentity();
+    atra_gl_ortho(0, window.screen.w, window.screen.h, 0, 0.0f, 1.0f);
+
+    atra_gl_matrixmode(ATRA_MODELVIEW);
+    atra_gl_loadidentity();
+}
+
 /* Returns a pointer to the window handle */
 ATRA_API
 void *
@@ -702,7 +726,8 @@ atra_input_update(void)
                 window.resized = 1;
                 window.screen.w = event.window.data1;
                 window.screen.h = event.window.data2;
-                glViewport(0, 0, window.screen.w, window.screen.h);
+                //glViewport(0, 0, window.screen.w, window.screen.h);
+                atra_window_setupviewport(window.screen.w, window.screen.h);
             }
         }
         atra_key_update(&event);

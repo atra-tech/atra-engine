@@ -13,6 +13,10 @@
 
 #define ATRA_VERSION "DEV 0.1.6"
 
+#ifdef __linux__
+    #define _POSIX_C_SOURCE 200112L 
+#endif
+
 #include "glad.h"
 
 #include <stdint.h>
@@ -20,6 +24,10 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
+#define TINYOBJ_LOADER_C_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_TRUETYPE_IMPLEMENTATION
+#define CGLTF_IMPLEMENTATION
 
 #if defined(_MSC_VER)
     #ifdef ATRA_LIB_EXPORT
@@ -47,11 +55,15 @@
     #define free(p)         atra_mem_free(p);
 #endif
 
-#define FALSE   0
-#define TRUE    1
+#define FALSE           0
+#define TRUE            1
 
 #ifndef PI
-    #define PI 3.14159265358979323846
+    #define PI          3.14159265358979323846
+#endif
+
+#ifndef PATH_MAX
+    #define PATH_MAX    4096
 #endif
 
 #define BIT(b) (1 << (b))

@@ -93,6 +93,9 @@ ATRA_API Image atra_image_copy(Image *image);
 /* Returns a copy of part of an image defined by a rectangle */
 ATRA_API Image atra_image_subcopy(Image *image, const IQuad rect);
 
+/* Applies a given tint color to an image */
+ATRA_API void atra_image_applytint(Image *image, Color tint);
+
 /* Resizes an image using bilinear scaling */
 ATRA_API void atra_image_scalebilinear(Image *image, int w_new, int h_new);
 

@@ -42,7 +42,6 @@ typedef struct MaterialMap {
 typedef struct Material {
     Shader shader;                          /* Shader to bind when rendering with material */
     MaterialMap maps[ATRA_TEXTURE_TOTAL];   /* Array of texture maps used by material */
-    int map_flags;                          /* Bitfield of which textures are enabled */
 } Material;
 
 /* Info  */
@@ -96,6 +95,14 @@ typedef struct BoneInfo {
     int parent;
 } BoneInfo;
 
+/* Model animation information */
+typedef struct ModelAnim {
+    int bone_count;         /* Number of bones */
+    int frame_count;        /* Number of animation key-frames */
+    BoneInfo *bones;        /* Bone information array */
+    Transform **frame_poses;/* Poses array by frame */
+} ModelAnim;
+
 /* Collection of meshes and materials in an animated model */
 typedef struct Model {
     mat4 transform;         /* Local transform matrix */
@@ -110,14 +117,6 @@ typedef struct Model {
     BoneInfo *bones;        /* Bone information array */
     Transform *bind_pose;   /* Initial transforms */
 } Model;
-
-/* Model animation information */
-typedef struct ModelAnim {
-    int bone_count;         /* Number of bones */
-    int frame_count;        /* Number of animation key-frames */
-    BoneInfo *bones;        /* Bone information array */
-    Transform **frame_poses;/* Poses array by frame */
-} ModelAnim;
 
 
 /*
@@ -144,14 +143,14 @@ ATRA_API void atra_model_draw(Model *model, vec3 pos, float scale, Color tint);
 
 /* Renders a model to the screen (extended parameters) */
 ATRA_API void atra_model_drawext(Model *model, vec3 pos, vec3 rot_axis,
-        vec3 rot_angle, float scale, Color tint);
+        float rot_angle, vec3 scale, Color tint);
 
 /* Renders a model wireframe to the screen */
 ATRA_API void atra_model_wiredraw(Model *model, vec3 pos, float scale, Color tint);
 
 /* Renders a model wireframe to the screen (extended parameters) */
 ATRA_API void atra_model_wiredrawext(Model *model, vec3 pos, vec3 rot_axis,
-        vec3 rot_angle, float scale, Color tint);
+        float rot_angle, vec3 scale, Color tint);
 
 
 /*
@@ -281,7 +280,7 @@ ATRA_API void atra_anim_delete(ModelAnim *anim);
 ATRA_API void atra_anim_deletearray(ModelAnim **anims, int count);
 
 /* Returns 1 if the model animation skeleton is a match */
-ATRA_API void atra_anim_modelskeletonmatch(Model *model, ModelAnim *anim);
+ATRA_API int atra_anim_modelskeletonmatch(Model *model, ModelAnim *anim);
 
 
 /*

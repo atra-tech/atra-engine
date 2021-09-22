@@ -72,6 +72,7 @@
 
 
 /* Possibly undefined GL extensions */
+
 #ifndef GL_SHADING_LANGUAGE_VERSION
     #define GL_SHADING_LANGUAGE_VERSION         0x8B8C
 #endif
@@ -113,6 +114,65 @@
 #endif
 #ifndef GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT
     #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT   0x84FF
+#endif
+
+/* GL debug defines */
+#ifndef GL_DEBUG_OUTPUT
+    #define GL_DEBUG_OUTPUT                     0x92E0
+#endif
+#ifndef GL_DEBUG_OUTPUT_SYNCHRONOUS
+    #define GL_DEBUG_OUTPUT_SYNCHRONOUS         0x8242
+#endif
+#ifndef GL_DEBUG_SOURCE_API
+    #define GL_DEBUG_SOURCE_API                 0x8246
+#endif
+#ifndef GL_DEBUG_SOURCE_WINDOW_SYSTEM
+    #define GL_DEBUG_SOURCE_WINDOW_SYSTEM       0x8247
+#endif
+#ifndef GL_DEBUG_SOURCE_SHADER_COMPILER
+    #define GL_DEBUG_SOURCE_SHADER_COMPILER     0x8248
+#endif
+#ifndef GL_DEBUG_SOURCE_THIRD_PARTY
+    #define GL_DEBUG_SOURCE_THIRD_PARTY         0x8249
+#endif
+#ifndef GL_DEBUG_SOURCE_APPLICATION
+    #define GL_DEBUG_SOURCE_APPLICATION         0x824A
+#endif
+#ifndef GL_DEBUG_SOURCE_OTHER
+    #define GL_DEBUG_SOURCE_OTHER               0x824B
+#endif
+#ifndef GL_DEBUG_TYPE_ERROR
+    #define GL_DEBUG_TYPE_ERROR                 0x824C
+#endif
+#ifndef GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR
+    #define GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR   0x824D
+#endif
+#ifndef GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR
+    #define GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR    0x824E
+#endif
+#ifndef GL_DEBUG_TYPE_PORTABILITY
+    #define GL_DEBUG_TYPE_PORTABILITY           0x824F
+#endif
+#ifndef GL_DEBUG_TYPE_PERFORMANCE
+    #define GL_DEBUG_TYPE_PERFORMANCE           0x8250
+#endif
+#ifndef GL_DEBUG_TYPE_OTHER
+    #define GL_DEBUG_TYPE_OTHER                 0x8251
+#endif
+#ifndef GL_DEBUG_TYPE_MARKER
+    #define GL_DEBUG_TYPE_MARKER                0x8252
+#endif
+#ifndef GL_DEBUG_SEVERITY_HIGH
+    #define GL_DEBUG_SEVERITY_HIGH              0x9146
+#endif
+#ifndef GL_DEBUG_SEVERITY_MEDIUM
+    #define GL_DEBUG_SEVERITY_MEDIUM            0x9147
+#endif
+#ifndef GL_DEBUG_SEVERITY_LOW
+    #define GL_DEBUG_SEVERITY_LOW               0x9148
+#endif
+#ifndef GL_DEBUG_SEVERITY_NOTIFICATION
+    #define GL_DEBUG_SEVERITY_NOTIFICATION      0x826B
 #endif
 
 enum gl_extension {
@@ -529,6 +589,9 @@ ATRA_API u8 * atra_gl_tex_readscreenpixels(int width, int height);
 /* Calculates the total size of an image, in bytes */
 ATRA_API int atra_gl_tex_calcsize(int width, int height);
 
+/* Returns the default texture ID */
+ATRA_API uint atra_gl_tex_getdefaultid(void);
+
 
 /*
  *  OpenGL wrapper functions (Framebuffer)
@@ -599,6 +662,12 @@ ATRA_API void atra_gl_shader_setattrib(int loc, const void *data, int type, int 
 
 /* Set shader currently active (id and locations) */
 ATRA_API void atra_gl_shader_setshader(uint prog_id, int *locs);
+
+/* Returns the shader ID of the default shader */
+ATRA_API uint atra_gl_shader_getdefaultid(void);
+
+/* Returns the shader locations array of the default shader */
+ATRA_API int * atra_gl_shader_getdefaultlocs(void);
 
 
 /*

@@ -119,6 +119,43 @@ atra_image_subcopy(Image *image, const IQuad rect)
     return new_img;
 }
 
+/* Applies a given tint color to an image */
+ATRA_API
+void
+atra_image_applytint(Image *image, Color tint)
+{
+    i8 *pixels;
+    int i, j;
+    float cr, cg, cb, ca;
+
+    /* Full-white tint has no effect, return early. */
+    if (tint.r == 0xFF && tint.g == 0xFF && tint.b == 0xFF && tint.a == 0xFF) {
+        return;
+    }
+
+    /* Check that image is valid */
+    if (image->data == NULL || image->width == 0 || image->height == 0) {
+        return;
+    }
+    pixels = image->data;
+
+    cr = tint.r / 255.0f;
+    cg = tint.g / 255.0f;
+    cb = tint.b / 255.0f;
+    ca = tint.a / 255.0f;
+
+    for (i = 0; i < image->height; i++) {
+        for (j = 0; j < image->width; j++) {
+            const int index = (j + i * image->width) * 4;
+
+            pixels[index + 0] = (pixels[index + 0] / 255.0f * cr) * 255.0f;
+            pixels[index + 1] = (pixels[index + 1] / 255.0f * cg) * 255.0f;
+            pixels[index + 2] = (pixels[index + 2] / 255.0f * cb) * 255.0f;
+            pixels[index + 3] = (pixels[index + 3] / 255.0f * ca) * 255.0f;
+        }
+    }
+}
+
 /* Resizes an image using bilinear scaling */
 ATRA_API
 void
@@ -558,13 +595,17 @@ atra_texture_samplebase(Texture *tex, int mode)
 
     tex->base_sample = mode;
 
-    m = (mode == ATRA_SAMPLE_NEAREST) ?
+    if (tex->mipmaps > 1) {
+        m = (mode == ATRA_SAMPLE_NEAREST) ?
             ((mipmode == ATRA_SAMPLE_NEAREST) ?
                 GL_NEAREST_MIPMAP_NEAREST :
                 GL_NEAREST_MIPMAP_LINEAR) :
             ((mipmode == ATRA_SAMPLE_NEAREST) ?
                 GL_LINEAR_MIPMAP_NEAREST :
                 GL_LINEAR_MIPMAP_LINEAR);
+    } else {
+        m = (mode == ATRA_SAMPLE_NEAREST) ? GL_NEAREST : GL_LINEAR;
+    }
 
     glBindTexture(GL_TEXTURE_2D, tex->id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, m);
@@ -580,7 +621,8 @@ atra_texture_samplemip(Texture *tex, int mode)
 
     tex->mip_sample = mode;
 
-    m = (mode == ATRA_SAMPLE_NEAREST) ?
+    if (tex->mipmaps > 1) {
+        m = (mode == ATRA_SAMPLE_NEAREST) ?
             ((basemode == ATRA_SAMPLE_NEAREST) ?
                 GL_NEAREST_MIPMAP_NEAREST :
                 GL_LINEAR_MIPMAP_NEAREST) :
@@ -588,8 +630,9 @@ atra_texture_samplemip(Texture *tex, int mode)
                 GL_NEAREST_MIPMAP_LINEAR :
                 GL_LINEAR_MIPMAP_LINEAR);
 
-    glBindTexture(GL_TEXTURE_2D, tex->id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, m);
+        glBindTexture(GL_TEXTURE_2D, tex->id);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, m);
+    }
 }
 
 /* Generates mipmaps using the default OpenGL mipmapping function */

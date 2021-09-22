@@ -10,6 +10,7 @@
 #ifndef ATRA_ENGINE_H
 #define ATRA_ENGINE_H
 
+#include "common.h"
 #include "glad.h"
 #include "camera.h"
 #include "core.h"

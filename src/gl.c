@@ -11,6 +11,25 @@
 
 #include "atra.h"
 
+const char *gl_type_str[] = {
+    "ERROR",
+    "DEPRECATED_BEHAVIOR",
+    "UNDEFINED_BEHAVIOR",
+    "PORTABILITY",
+    "PERFORMANCE",
+    "OTHER",
+    "MARKER"
+};
+
+const char *gl_source_str[] = {
+    "API",
+    "WINDOW_SYSTEM",
+    "SHADER_COMPILER",
+    "THIRD_PARTY",
+    "APPLICATION",
+    "OTHER",
+};
+
 static RenderBatch *current_batch = {0};
 static RenderBatch default_batch = {0};
 static GLExtSupport gl_ext_support = {0};
@@ -27,8 +46,22 @@ GLAPIENTRY
 MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
         GLsizei length, const GLchar *message, const void *user_param)
 {
-    atra_log_print(LOG_ERROR, "gl: opengl: type = 0x%x, severity = 0x%x, "
-            "message = %s", type, severity, message);
+    type -= GL_DEBUG_TYPE_ERROR;
+    source -= GL_DEBUG_SOURCE_API;
+
+    if (severity == GL_DEBUG_SEVERITY_HIGH) {
+        atra_log_print(LOG_FATAL, "<%s> (%s) gl: %s",
+                gl_type_str[type], gl_source_str[source], message);
+    } else if (severity == GL_DEBUG_SEVERITY_MEDIUM) {
+        atra_log_print(LOG_ERROR, "<%s> (%s) gl: %s",
+                gl_type_str[type], gl_source_str[source], message);
+    } else if (severity == GL_DEBUG_SEVERITY_LOW) {
+        atra_log_print(LOG_WARN, "<%s> (%s) gl: %s",
+                gl_type_str[type], gl_source_str[source], message);
+    } else if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
+        atra_log_print(LOG_INFO, "<%s> (%s) gl: %s",
+                gl_type_str[type], gl_source_str[source], message);
+    }
 }
 
 /* Initialises the OpenGL subsystem */
@@ -39,6 +72,9 @@ atra_gl_init(int width, int height)
     u8 color[4] = {255, 255, 255, 255};
     int i;
     
+    atra_gl_detectextensions();
+    atra_gl_detectlimits();
+
     gl_state.def_tex_id = atra_gl_tex_create(color, 1, 1, 1);
 
     atra_gl_shader_loaddefault();
@@ -58,9 +94,6 @@ atra_gl_init(int width, int height)
 
     gl_state.matrix = &gl_state.modelview;
 
-    atra_gl_detectextensions();
-    atra_gl_detectlimits();
-
     /* Initialise default OpenGL states */
     glDepthFunc(GL_LEQUAL);
     glDisable(GL_DEPTH_TEST);
@@ -76,6 +109,9 @@ atra_gl_init(int width, int height)
 
     gl_state.fbuffer_width = width;
     gl_state.fbuffer_height = height;
+
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallbackARB(MessageCallback, NULL);
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClearDepth(1.0f);
@@ -106,8 +142,13 @@ atra_gl_detectextensions(void)
 {
     gl_ext_support.exts[ATRA_GL_EXT_VAO] = 1;
     gl_ext_support.exts[ATRA_GL_EXT_INSTANCING] = 1;
-    gl_ext_support.exts[ATRA_GL_EXT_TEX_DEPTH] = 1;
+    gl_ext_support.exts[ATRA_GL_EXT_TEX_ARRAY] = 1;
     gl_ext_support.exts[ATRA_GL_EXT_TEX_NPOT] = 1;
+    gl_ext_support.exts[ATRA_GL_EXT_TEX_DEPTH] = 1;
+    gl_ext_support.exts[ATRA_GL_EXT_TEX_FLOAT32] = 1;
+    gl_ext_support.exts[ATRA_GL_EXT_TEX_MIRRORCLAMP] = 1;
+    gl_ext_support.exts[ATRA_GL_EXT_TEX_ANISOFILTER] = 1;
+    gl_ext_support.exts[ATRA_GL_EXT_TEX_FLOAT32] = 1;
 }
 
 /* Checks for limits to some GPU capabilities, such as max texture size */
@@ -115,7 +156,6 @@ ATRA_API
 void
 atra_gl_detectlimits(void)
 {
-
 }
 
 /* Returns a pointer to the internal GL state */
@@ -332,7 +372,7 @@ atra_gl_batch_draw(RenderBatch *batch)
 
         /* Draw buffers */
         atra_gl_shader_enable(gl_state.shader_id);
-        glm_mat4_mul(gl_state.modelview, gl_state.proj, mvp);
+        glm_mat4_mul(gl_state.proj, gl_state.modelview, mvp);
         atra_gl_shader_setuniform(gl_state.shader_locs[ATRA_SHADER_LOC_M_MVP],
             mvp, ATRA_SHADER_UNIFORM_MAT4, 1);
         
@@ -410,7 +450,7 @@ atra_gl_batch_draw(RenderBatch *batch)
         atra_gl_tex_disable();
         atra_gl_shader_disable();
     } else {
-        atra_log_print(LOG_WARN, "No vertices is render batch");
+        return;
     }
 
     /* Reset batch for next draw */
@@ -726,7 +766,7 @@ atra_gl_end3D(void)
     atra_gl_matrixmode(ATRA_MODELVIEW);
     atra_gl_loadidentity();
 
-    atra_gl_multmatrix(*atra_window_getscreenscalemat());
+    //atra_gl_multmatrix(*atra_window_getscreenscalemat());
     atra_gl_disabledepthtest();
 }
 
@@ -928,7 +968,7 @@ atra_gl_scale(float x, float y, float z)
     glm_scale(*gl_state.matrix, scale_vec);
 }
 
-/* Multiplies the current matrix with another, given as an argument */
+/* Multiplies a matrix with the current matrix */
 ATRA_API
 void
 atra_gl_multmatrix(vec4 *mat)
@@ -1497,6 +1537,14 @@ atra_gl_tex_calcsize(int width, int height)
     return width * height * 4;
 }
 
+/* Returns the default texture ID */
+ATRA_API
+uint
+atra_gl_tex_getdefaultid(void)
+{
+    return gl_state.def_tex_id;
+}
+
 
 /*
  *  OpenGL wrapper functions (Framebuffer)
@@ -1888,11 +1936,6 @@ atra_gl_shader_deletedefault(void)
 {
     glUseProgram(0);
 
-    glDetachShader(gl_state.def_shader_id, gl_state.def_vshader_id);
-    glDetachShader(gl_state.def_shader_id, gl_state.def_fshader_id);
-    glDeleteShader(gl_state.def_vshader_id);
-    glDeleteShader(gl_state.def_fshader_id);
-
     glDeleteProgram(gl_state.def_shader_id);
 
     free(gl_state.def_shader_locs);
@@ -1996,6 +2039,23 @@ atra_gl_shader_setshader(uint prog_id, int *locs)
         gl_state.shader_locs = locs;
     }
 }
+
+/* Returns the shader ID of the default shader */
+ATRA_API
+uint
+atra_gl_shader_getdefaultid(void)
+{
+    return gl_state.def_shader_id;
+}
+
+/* Returns the shader locations array of the default shader */
+ATRA_API
+int *
+atra_gl_shader_getdefaultlocs(void)
+{
+    return gl_state.def_shader_locs;
+}
+
 
 /*
  *  OpenGL wrapper functions (General rendering)

@@ -243,9 +243,11 @@ void
 atra_list_dealloc(List *restrict list)
 {
     i8 *i;
+    void *elem;
 
     for (i = list->start; i < list->head; i += list->elem_size) {
-        free(*(void **) i);
+        elem = *(void **)i;
+        free(elem);
     }
 }
 
