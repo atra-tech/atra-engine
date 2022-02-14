@@ -22,7 +22,7 @@ LIB=$(LIBDIR)/atra.a
 INC_DIRS=$(shell find $(SRC) -type d)
 INC_FLAGS=$(addprefix -I,$(INC_DIRS))
 
-LDFLAGS=-lm -ldl -lSDL2 -lSDL2_image -lGL
+LDFLAGS=-lm -ldl -lSDL2 -lSDL2_image -lGL -lopenal
 CFLAGS=$(INC_FLAGS) -MP -MMD -O0 -Wall -Wextra -Wpedantic -g -std=c99
 
 $(BUILD_DIR)/$(TARGET): $(LIB) $(BUILD_DIR) $(EXEC_SRCS)

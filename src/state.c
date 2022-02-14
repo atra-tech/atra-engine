@@ -52,6 +52,7 @@ void
 atra_state_handle(void)
 {
     atra_engine_update();
+    atra_gui_handle();
     state_stack[stack_size - 1].handle();
 }
 

@@ -23,6 +23,7 @@
 
 typedef SDL_Event Event;
 typedef SDL_Cursor Cursor;
+typedef SDL_Surface Surface;
 typedef SDL_GameController GamePad;
 
 typedef struct System {
@@ -63,6 +64,7 @@ typedef struct Input {
         int textqueue_size;                 /* Pending text input events */
 
         /* Text input mode variables */
+        int text_mode;                      /* Set when text input mode is enabled */
         char *comp_text;                    /* Editing text (UTF-8) */
         i32 comp_length;                    /* Number of characters in comp */
         i32 cursor_pos;                     /* Location to begin editing from */
@@ -74,7 +76,8 @@ typedef struct Input {
         ivec2 pos_prev;                     /* Mouse position last frame */
         vec2 scale;                         /* Mouse scaling */
 
-        Cursor *cursor;                     /* SDL system cursor handle */
+        Cursor *cursors[ATRA_CURSOR_TOTAL]; /* SDL system cursor handles */
+        Surface *csurf[ATRA_CURSOR_TOTAL];  /* SDL cursor surfaces */
         int cursor_style;                   /* Current mouse cursor type */
         int cursor_hidden;                  /* True when mouse is hidden */
         int cursor_locked;                  /* True when the mouse is locked */
@@ -156,6 +159,7 @@ static Time time_data = {0};
 ATRA_INLINE void atra_window_init(int width, int height, const char *title);
 ATRA_INLINE void atra_context_init(int width, int height);
 ATRA_INLINE void atra_input_init(void);
+ATRA_INLINE void atra_key_init(void);
 ATRA_INLINE void atra_mouse_init(void);
 ATRA_INLINE void atra_pad_init(void);
 ATRA_INLINE void atra_time_init(void);
@@ -180,6 +184,8 @@ atra_engine_start(int width, int height, const char *title)
     atra_time_init();
     atra_mempool_init(32 * 1024 * 1024);
     atra_gl_init(width, height);
+    atra_gui_init();
+    atra_audio_init();
 }
 
 ATRA_API
@@ -195,8 +201,19 @@ ATRA_API
 void
 atra_engine_stop(void)
 {
+    int i;
+
     atra_log_print(LOG_INFO, "Stopping Atra Engine");
 
+    for (i = 0; i < ATRA_CURSOR_TOTAL; i++) {
+        SDL_FreeCursor(input.mouse.cursors[i]);
+
+        if (input.mouse.csurf[i] == NULL) {
+            SDL_FreeSurface(input.mouse.csurf[i]);
+        }
+    }
+    atra_audio_stop();
+    atra_gui_stop();
     atra_state_stop();
     atra_gl_stop();
     atra_log_stop();
@@ -693,6 +710,7 @@ ATRA_INLINE
 void
 atra_input_init(void)
 {
+    atra_key_init();
     atra_mouse_init();
     atra_pad_init();
 }
@@ -708,15 +726,27 @@ atra_input_update(void)
      */
     SDL_Event event;
 
+    /* Move all current frame data to previous frame slots */
+    memcpy(input.key.keystate_prev, input.key.keystate_curr, KEY_MAXKEYS * sizeof(u8));
+    memcpy(input.pad.buttonstate_prev, input.pad.buttonstate_curr, PAD_MAX * PAD_MAXBUTTONS * sizeof(i8));
+    memcpy(input.mouse.buttons_prev, input.mouse.buttons_curr, MOUSE_MAXBUTTONS * sizeof(int));
+    memcpy(input.mouse.pos_prev, input.mouse.pos_curr, sizeof(ivec2));
+    input.mouse.wheelmove_prev = input.mouse.wheelmove_curr;
+    input.mouse.wheelmove_curr = 0;
+
     /* Reset queues to original state */
     input.key.keyqueue_size = 0;
     input.key.textqueue_size = 0;
+    input.mouse.eventqueue_size = 0;
+    input.pad.eventqueue_size = 0;
+
+    /* Reset internal index counters for queues */
     atra_key_getpressed();
     atra_key_gettext();
-    
+
     /* Update frame dependent variables */
-    input.mouse.pos_prev[0] = input.mouse.pos_curr[0];
-    input.mouse.pos_prev[1] = input.mouse.pos_curr[1];
+    //input.mouse.pos_prev[0] = input.mouse.pos_curr[0];
+    //input.mouse.pos_prev[1] = input.mouse.pos_curr[1];
 
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
@@ -726,13 +756,14 @@ atra_input_update(void)
                 window.resized = 1;
                 window.screen.w = event.window.data1;
                 window.screen.h = event.window.data2;
-                //glViewport(0, 0, window.screen.w, window.screen.h);
                 atra_window_setupviewport(window.screen.w, window.screen.h);
+                atra_gui_fullremesh();
             }
+        } else {
+            atra_key_update(&event);
+            atra_mouse_update(&event);
+            atra_pad_update(&event);
         }
-        atra_key_update(&event);
-        atra_mouse_update(&event);
-        atra_pad_update(&event);
     }
 }
 
@@ -740,6 +771,15 @@ atra_input_update(void)
 /*
  *  Keyboard functions
  */
+
+/* Initialised keyboard states */
+ATRA_INLINE
+void
+atra_key_init(void)
+{
+    /* Preemptively disable text input mode, since it is enabled by default */
+    atra_key_settextinputmode(0);
+}
 
 /* Update input structure keyboard subsystem state */
 ATRA_INLINE
@@ -750,12 +790,10 @@ atra_key_update(Event *e)
 
     switch (e->type) {
     case ATRA_KEYDOWN:
-        input.key.keystate_prev[key] = input.key.keystate_curr[key];
         input.key.keystate_curr[key] = 1;
         atra_key_pushkeyevent(key);
         break;
     case ATRA_KEYUP:
-        input.key.keystate_prev[key] = input.key.keystate_curr[key];
         input.key.keystate_curr[key] = 0;
         break;
     case ATRA_TEXTEDITING:
@@ -765,6 +803,7 @@ atra_key_update(Event *e)
         break;
     case ATRA_TEXTINPUT:
         atra_key_pushtextevent(e->text.text);
+        atra_log_print(LOG_INFO, "Text input: %s", e->text.text);
         break;
     case ATRA_KEYMAPCHANGED:
         break;
@@ -787,7 +826,7 @@ ATRA_INLINE
 void
 atra_key_pushtextevent(const char text[32])
 {
-    if (input.key.keyqueue_size >= EVENT_MAXQUEUE) {
+    if (input.key.textqueue_size >= EVENT_MAXQUEUE) {
         atra_log_print(LOG_ERROR, "core: Keyboard character queue overflow: " \
                 "dropping text input");
         return;
@@ -847,13 +886,15 @@ i32
 atra_key_getpressed(void)
 {
     static i32 index = 0;
+    i32 key;
 
     if (index >= input.key.keyqueue_size) {
         index = 0;
         return ATRA_KEY_NULL;
     } else {
+        key = input.key.keyqueue[index];
         index++;
-        return input.key.keyqueue[index];
+        return key; 
     }
 }
 
@@ -863,14 +904,38 @@ const char *
 atra_key_gettext(void)
 {
     static i32 index = 0;
+    const char *text;
 
     if (index >= input.key.textqueue_size) {
         index = 0;
         return NULL;
     } else {
+        text = input.key.textqueue[index];
         index++;
-        return input.key.textqueue[index];
+        return text; 
     }
+}
+
+/* Enables or disables text input mode */
+ATRA_API
+void
+atra_key_settextinputmode(int active)
+{
+    input.key.text_mode = active;
+
+    if (active) {
+        SDL_StartTextInput();
+    } else {
+        SDL_StopTextInput();
+    }
+}
+
+/* Returns 1 if text input mode is enabled */
+ATRA_API
+int
+atra_key_textinputenabled(void)
+{
+    return input.key.text_mode;
 }
 
 /* Returns a pointer to the internal composition text */
@@ -1071,13 +1136,17 @@ ATRA_INLINE
 void
 atra_mouse_init(void)
 {
-    input.mouse.cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+    int i;
+
+    for (i = 0; i < ATRA_CURSOR_TOTAL; i++) {
+        input.mouse.cursors[i] = SDL_CreateSystemCursor(i);
+    }
     
-    if (input.mouse.cursor == NULL) {
+    if (input.mouse.cursors[0] == NULL) {
         atra_log_print(LOG_ERROR, "Mouse cursor style changing is unsupported");
         atra_util_sdl_printerror();
     }
-    SDL_SetCursor(input.mouse.cursor);
+    SDL_SetCursor(input.mouse.cursors[ATRA_CURSOR_ARROW]);
 }
 
 /* Update input structure mouse subsystem state */
@@ -1089,24 +1158,19 @@ atra_mouse_update(Event *e)
 
     switch (e->type) {
     case ATRA_MOUSEMOTION:
-        input.mouse.pos_prev[0] = input.mouse.pos_curr[0];
-        input.mouse.pos_prev[1] = input.mouse.pos_curr[1];
         input.mouse.pos_curr[0] = e->motion.x;
         input.mouse.pos_curr[1] = e->motion.y;
         break;
     case ATRA_MOUSEBUTTONDOWN:
         button = e->button.button;
-        input.mouse.buttons_prev[button] = input.mouse.buttons_curr[button];
         input.mouse.buttons_curr[button] = 1;
         break;
     case ATRA_MOUSEBUTTONUP:
         button = e->button.button;
-        input.mouse.buttons_prev[button] = input.mouse.buttons_curr[button];
         input.mouse.buttons_curr[button] = 0;
         break;
     case ATRA_MOUSEWHEEL:
         e->wheel.y *= 1 - 2 * (e->wheel.direction == SDL_MOUSEWHEEL_FLIPPED);
-        input.mouse.wheelmove_prev = input.mouse.wheelmove_curr;
         input.mouse.wheelmove_curr = e->wheel.y;
     }
 }
@@ -1132,8 +1196,8 @@ ATRA_API
 int
 atra_mouse_ispressed(i32 button)
 {
-    i32 curr = input.mouse.buttons_curr[button];
-    i32 prev = input.mouse.buttons_prev[button];
+    const i32 curr = input.mouse.buttons_curr[button];
+    const i32 prev = input.mouse.buttons_prev[button];
 
     return (curr == 1) && (curr != prev);
 }
@@ -1143,10 +1207,18 @@ ATRA_API
 int
 atra_mouse_isreleased(i32 button)
 {
-    i32 curr = input.mouse.buttons_curr[button];
-    i32 prev = input.mouse.buttons_prev[button];
+    const i32 curr = input.mouse.buttons_curr[button];
+    const i32 prev = input.mouse.buttons_prev[button];
 
     return (curr == 0) && (curr != prev);
+}
+
+/* Returns 1 if mouse is locked */
+ATRA_API
+int
+atra_mouse_islocked(void)
+{
+    return input.mouse.cursor_locked;
 }
 
 /* Sets x and y to window-space coordinates of the mouse cursor */
@@ -1189,19 +1261,47 @@ atra_mouse_getwheelmovement(void)
     return input.mouse.wheelmove_curr;
 }
 
+/* Returns a new SDL_Surface, constructed from an Atra Engine image type */
+ATRA_INLINE
+SDL_Surface *
+atra_image_tosurface(Image *image)
+{
+    SDL_Surface *surface = calloc(1, sizeof(SDL_Surface));
+    u8 *pixels;
+
+    pixels = malloc(image->width * image->height * 4);
+    memcpy(pixels, image->data, image->width * image->height * 4);
+
+    surface->w = image->width;
+    surface->h = image->height;
+    surface->pitch = surface->w * 4;
+    surface->pixels = pixels;
+
+    return surface;
+}
+
 /* Sets the mouse cursor display style */
 ATRA_API
 void
 atra_mouse_setcursor(i32 cursor)
 {
-    SDL_FreeCursor(input.mouse.cursor);
-    input.mouse.cursor = SDL_CreateSystemCursor(cursor);
+    SDL_SetCursor(input.mouse.cursors[cursor]);
+}
 
-    if (input.mouse.cursor == NULL) {
-        atra_log_print(LOG_ERROR, "core: Cursor style changing is unsupported");
-        atra_util_sdl_printerror();
+/* Sets the mouse cursor image to use when in a specific cursor style */
+ATRA_API
+void
+atra_mouse_setcursorimage(i32 cursor, Image *image, int hot_x, int hot_y)
+{
+    SDL_Surface *surface = atra_image_tosurface(image);
+
+    SDL_FreeCursor(input.mouse.cursors[cursor]);
+
+    if (input.mouse.csurf[cursor] != NULL) {
+        SDL_FreeSurface(input.mouse.csurf[cursor]);
     }
-    SDL_SetCursor(input.mouse.cursor);
+    input.mouse.cursors[cursor] = SDL_CreateColorCursor(surface, hot_x, hot_y); 
+    input.mouse.csurf[cursor] = surface;
 }
 
 /* Hides the mouse cursor and locks it to the centre of the screen */

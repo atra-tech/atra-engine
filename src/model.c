@@ -309,8 +309,8 @@ atra_mesh_end(int dynamic)
     curr_mesh->vert_count = curr_mesh->im->vert_count;
     curr_mesh->tri_count = curr_mesh->im->vert_count / 2;
 
+    /* Initialise indices */
     if (curr_mesh->im->mode == ATRA_QUADS) {
-        /* Initialise indices */
         j = 0;
 
         curr_mesh->indices = malloc(curr_mesh->tri_count * 3 * sizeof(float));
@@ -375,13 +375,13 @@ ATRA_API
 void
 atra_mesh_vertexv(const vec3 pos)
 {
-    void *const dest = curr_mesh->verts + curr_mesh->im->vert_count * 3;
- 
-    if (curr_mesh->vert_count + 1 >=
+    if (curr_mesh->im->vert_count + 1 >=
             curr_mesh->im->limit * curr_mesh->im->prim_size) {
         atra_mesh_growbuffers();
     }
+    void *const dest = curr_mesh->verts + curr_mesh->im->vert_count * 3;
     curr_mesh->im->vert_count++;
+
     memcpy(dest, pos, sizeof(vec3));
 }
 
@@ -621,7 +621,7 @@ atra_mesh_upload(Mesh *mesh, int dynamic)
     }
 
     if (mesh->vao_id > 0) {
-        atra_log_print(LOG_INFO, "mesh: Mesh [%d] successfully uploaded to GPU", mesh->vao_id);
+        //atra_log_print(LOG_INFO, "mesh: Mesh [%d] successfully uploaded to GPU", mesh->vao_id);
     } else {
         atra_log_print(LOG_ERROR, "mesh: Mesh [%d] failed during GPU upload", mesh->vao_id);
     }
@@ -644,6 +644,10 @@ atra_mesh_draw(Mesh *mesh, Material *mat, mat4 transform)
 {
     mat4 model, view, proj, modelview, normal, mvp, gl_transform;
     int i;
+
+    if (mesh->vert_count == 0) {
+        return;
+    }
 
     atra_shader_setactive(&mat->shader);
 
@@ -826,8 +830,10 @@ ATRA_API
 void
 atra_mesh_drawinstanced(Mesh *mesh, Material *mat, mat4 *transforms, int count)
 {
+    ATRA_UNUSED(transforms);
+
     mat4 model, view, proj, modelview, normal, mvp, gl_transform;
-    uint instance_vboid = 0;
+    //uint instance_vboid = 0;
     int i;
 
     atra_shader_setactive(&mat->shader);
@@ -873,7 +879,7 @@ atra_mesh_drawinstanced(Mesh *mesh, Material *mat, mat4 *transforms, int count)
     }
 
     atra_gl_vao_enable(mesh->vao_id);
-    instance_vboid = atra_gl_vbo_create(transforms, count * sizeof(float), 0);
+    //instance_vboid = atra_gl_vbo_create(transforms, count * sizeof(float), 0);
 
     for (i = 0; i < 4; i++) {
         atra_gl_vao_enableattrib(mat->shader.locs[ATRA_SHADER_LOC_M_MODEL] + i);
@@ -1010,7 +1016,8 @@ ATRA_API
 void
 atra_mesh_export(Mesh *mesh, const char *path)
 {
-
+    ATRA_UNUSED(mesh);
+    ATRA_UNUSED(mesh);
 }
 
 /* Returns a new minimum bounding box for a mesh */
@@ -1018,7 +1025,7 @@ ATRA_API
 AABB
 atra_mesh_createaabb(Mesh *mesh)
 {
-
+    ATRA_UNUSED(mesh);
 }
 
 /* Calculates mesh tangents */
@@ -1026,7 +1033,7 @@ ATRA_API
 void
 atra_mesh_calctangents(Mesh *mesh)
 {
-
+    ATRA_UNUSED(mesh);
 }
 
 /* Calculates mesh bitangents */
@@ -1034,7 +1041,7 @@ ATRA_API
 void
 atra_mesh_calcbitangents(Mesh *mesh)
 {
-
+    ATRA_UNUSED(mesh);
 }
 
 /* Computes a mesh from a heightmap image */
@@ -1042,7 +1049,8 @@ ATRA_API
 Mesh
 atra_mesh_loadheightmap(Image *heightmap, vec3 size)
 {
-
+    ATRA_UNUSED(heightmap);
+    ATRA_UNUSED(size);
 }
 
 

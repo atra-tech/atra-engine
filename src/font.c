@@ -12,6 +12,37 @@
 #include "atra.h"
 #include "stb/stb_truetype.h"
 
+/* Common UTF-8 character ranges */
+/*static const u32 ranges_ascii[] = {
+    0x0020, 0x00FF,
+    0
+};
+
+static const u32 ranges_cyrillic[] = {
+    0x0020, 0x00FF,
+    0x0400, 0x052F,
+    0x2DE0, 0x2DFF,
+    0xA640, 0xA69F,
+    0
+};
+
+static const u32 ranges_chinese[] = {
+    0x0020, 0x00FF,
+    0x3000, 0x30FF,
+    0x31F0, 0x31FF,
+    0xFF00, 0xFFEF,
+    0x4e00, 0x9FAF,
+    0 
+};
+
+static const u32 ranges_korean[] = {
+    0x0020, 0x00FF,
+    0x3131, 0x3163,
+    0xAC00, 0xD79D,
+    0
+};
+*/
+
 /* Loads a font from a TTF file and uploads it to the GPU */
 ATRA_API
 Font
@@ -52,6 +83,10 @@ ATRA_API
 Font
 atra_font_loadimage(Image *image, Color key, int first)
 {
+    ATRA_UNUSED(image);
+    ATRA_UNUSED(key);
+    ATRA_UNUSED(first);
+
     Font font = {0};
 
     atra_log_print(LOG_WARN, "font: Image font loading not implemented");
@@ -103,6 +138,8 @@ Glyph *
 atra_font_loadglyphs(const u8 *buf, int buf_size,
         int font_size, int *chars, int count, int type)
 {
+    ATRA_UNUSED(buf_size);
+
     Glyph *result = NULL;
     stbtt_fontinfo font_info = {0};
     int genchars = 0;
@@ -278,18 +315,24 @@ atra_font_calctextsize(Font *font, const char *str, float font_size, float spaci
 /* Returns the index position of a UTF-8 character in the font */
 ATRA_API
 int
-atra_font_getglyphindex(Font *font, int codepoint)
+atra_font_getglyphindex(const Font *font, int codepoint)
 {
+    ATRA_UNUSED(font);
+
     int index = 0x3f;
+
+    /*
     int i;
 
-    /*for (i = 0; i < font->glyph_count; i++) {
+    for (i = 0; i < font->glyph_count; i++) {
         if (font->glyphs[i].value == codepoint) {
             index = i;
             break;
         }
-    }*/
-    index = codepoint - 32;
+    }
+    */
+
+    index = MAX(codepoint - 32, 0);
 
     return index;
 }
@@ -395,6 +438,10 @@ void
 atra_font_drawtext(Font *font, const char *str, float x, float y,
         float font_size, float spacing, Color color)
 {
+    if (str == NULL) {
+        return;
+    }
+
     if (font->texture.id == 0) {
         atra_log_print(LOG_WARN, "font: Attempted to draw with an incomplete font");
     }
@@ -425,23 +472,407 @@ atra_font_drawtext(Font *font, const char *str, float x, float y,
             }
 
             if (font->glyphs[index].advance == 0) {
-                text_offset_x += font->quads[i].w * scale + spacing;
+                text_offset_x += font->quads[index].w * scale + spacing;
             } else {
                 text_offset_x += font->glyphs[index].advance * scale + spacing;
             }
         }
         i += codepoint_byte_count;
     }
-
 }
 
+/* Draws a string to the screen using a given font (mesh version) */
+ATRA_API
+void
+atra_font_drawtext_mesh(Mesh *mesh, Font *font, const char *str, float x, float y,
+        float depth, float font_size, float spacing, Color color)
+{
+    if (str == NULL) {
+        return;
+    }
+
+    if (font->texture.id == 0) {
+        atra_log_print(LOG_WARN, "font: Attempted to draw with an incomplete font");
+    }
+
+    int str_len = strlen(str);
+    int text_offset_y = 0;
+    float text_offset_x = 0.0f;
+    float scale = font_size / font->size;
+    int codepoint_byte_count, codepoint;
+    int index, i;
+
+    atra_mesh_setactive(mesh);
+    *mesh = atra_mesh_begin(ATRA_QUADS,
+            ATRA_MESH_BUFFER_POSITION |
+            ATRA_MESH_BUFFER_TEXCOORD |
+            ATRA_MESH_BUFFER_COLORS);
+
+    for (i = 0; i < str_len;) {
+        codepoint_byte_count = 0;
+        codepoint = atra_utf_getcodepoint(str + i, &codepoint_byte_count);
+        index = atra_font_getglyphindex(font, codepoint);
+
+        if (codepoint == 0x3f) codepoint_byte_count = 1;
+
+        if (codepoint == '\n') {
+            text_offset_y += (font->size + font->size / 2.0) * scale;
+            text_offset_x = 0.0f;
+        } else {
+            if (codepoint != ' ' && codepoint != '\t') {
+                const int x_pos = x + text_offset_x;
+                const int y_pos = y + text_offset_y;
+
+                atra_font_drawcodepoint_mesh(font, codepoint, x_pos, y_pos,
+                        depth, font_size, color);
+            }
+
+            if (font->glyphs[index].advance == 0) {
+                text_offset_x += font->quads[index].w * scale + spacing;
+            } else {
+                text_offset_x += font->glyphs[index].advance * scale + spacing;
+            }
+        }
+        i += codepoint_byte_count;
+    }
+    atra_mesh_end(0);
+}
+
+/* TODO: Test functionality and add branch for line/character wrapping */
+/* TODO: Add centre and right alignment */
 /* Draws a string inside the a given rectangular bound (supports line wrapping) */
 ATRA_API
 void
 atra_font_drawtextrect(Font *font, const char *str, Quad quad,
         float font_size, float spacing, int word_wrap, Color color)
 {
+    ATRA_UNUSED(word_wrap);
 
+    if (str == NULL) {
+        return;
+    }
+
+    const int str_len = strlen(str);
+    const float scale = font_size / font->size;
+    const float row_skip = (font->size + font->size / 4.0f) * scale;
+    
+    int codepoint_byte_count, codepoint;
+    int x_pos, y_pos;
+    int index, i;
+
+    int word_start;
+    float word_width;
+    int row_start;
+    float row_width;
+
+    int code_count;
+    int *codes;
+    float *code_widths;
+
+    code_count = 0;
+    codes = malloc((str_len + 1) * sizeof(int));
+    code_widths = malloc((str_len + 1) * sizeof(float));
+
+    /* Get the number, size, width and index of each codepoint */
+    for (i = 0; i < str_len;) {
+        codepoint_byte_count = 0;
+        codepoint = atra_utf_getcodepoint(str + i, &codepoint_byte_count);
+        index = atra_font_getglyphindex(font, codepoint);
+
+        if (codepoint == 0x3f) {
+            codepoint_byte_count = 1;
+        }
+        codes[code_count] = codepoint;
+        code_widths[code_count] = spacing + scale * 
+                DECIDE(font->glyphs[index].advance != 0,
+                    font->glyphs[index].advance, font->quads[index].w);
+
+        code_count++;
+        i += codepoint_byte_count;
+    }
+    word_start = 0;
+    word_width = 0.0f;
+    row_start = 0;
+    row_width = 0.0f;
+    x_pos = quad.x;
+    y_pos = quad.y;
+    
+    for (i = 0; i < code_count; i++) {
+        
+        /* Handle newline character */
+        if (codes[i] == '\n') {
+            /* Draw current row */
+            x_pos = quad.x;
+
+            for (; row_start < i; row_start++) {
+                if (!atra_utf_iscodepointbreaking(codes[row_start]) &&
+                        codes[row_start] != '\t') {
+                    atra_font_drawcodepoint(font,
+                            codes[row_start], x_pos, y_pos, font_size, color);
+                }
+                x_pos += code_widths[row_start];
+            }
+
+            /* Move to next row */
+            y_pos += row_skip;
+            word_width = 0.0f;
+            row_width = 0.0f;
+            row_start = i + 1;
+            continue;
+        } else if (codes[i] < 0x20) {
+            /* TODO: Handle other undrawable crap like '\t' */
+        }
+        word_width += code_widths[i];
+
+        /* Force character wrap if word is longer than line */
+        if ((word_width > quad.w)) {
+            /* Draw current row */
+            x_pos = quad.x;
+
+            for (; row_start < i; row_start++) {
+                if (!atra_utf_iscodepointbreaking(codes[row_start]) &&
+                        codes[row_start] != '\t') {
+                    atra_font_drawcodepoint(font,
+                            codes[row_start], x_pos, y_pos, font_size, color);
+                }
+                x_pos += code_widths[row_start];
+            }
+
+            /* Move to next row */
+            y_pos += row_skip;
+            word_width = code_widths[i];
+            row_width = 0.0f;
+        }
+
+        /* Draw the rest of the text if this is the last codepoint */
+        if (i == code_count - 1) {
+            /* Draw current row */
+            x_pos = quad.x;
+
+            for (; row_start <= i; row_start++) {
+                if (!atra_utf_iscodepointbreaking(codes[row_start]) &&
+                        codes[row_start] != '\t') {
+                    atra_font_drawcodepoint(font,
+                            codes[row_start], x_pos, y_pos, font_size, color);
+                }
+                x_pos += code_widths[row_start];
+            }
+            break;
+        }
+
+        /* Add word to row if breaking character is found */
+        if (atra_utf_iscodepointbreaking(codes[i])) {
+            /* Check that word fits in quad (row_width + width) */
+            if ((row_width + word_width > quad.w)) {
+                /* Draw current row */
+                x_pos = quad.x;
+
+                for (; row_start <= word_start; row_start++) {
+                    if (!atra_utf_iscodepointbreaking(codes[row_start]) &&
+                            codes[row_start] != '\t') {
+                        atra_font_drawcodepoint(font,
+                                codes[row_start], x_pos, y_pos, font_size, color);
+                    }
+                    x_pos += code_widths[row_start];
+                }
+
+                /* Move to next row */
+                y_pos += row_skip;
+                word_start = i;
+                row_width = word_width;
+                word_width = 0.0f;
+
+            } else {
+                row_width += word_width;
+                word_start = i;
+                word_width = 0.0f;
+            }
+        }
+    }
+    free(codes);
+    free(code_widths);
+}
+
+/* Draws a string inside the a given rectangular bound (mesh version) */
+ATRA_API
+void
+atra_font_drawtextrect_mesh(Mesh *mesh, Font *font, const char *str, Quad quad,
+        float depth, float font_size, float spacing, int word_wrap, Color color)
+{
+    ATRA_UNUSED(word_wrap);
+
+    *mesh = atra_mesh_begin(ATRA_QUADS,
+            ATRA_MESH_BUFFER_POSITION |
+            ATRA_MESH_BUFFER_TEXCOORD |
+            ATRA_MESH_BUFFER_COLORS);
+    atra_mesh_setactive(mesh);
+
+    if (str == NULL) {
+        atra_mesh_end(FALSE);
+        return;
+    }
+
+    if (font->texture.id == 0) {
+        atra_log_print(LOG_WARN, "font: Attempted to draw with an incomplete font");
+        return;
+    }
+    
+    const int str_len = strlen(str);
+    const float scale = font_size / font->size;
+    const float row_skip = (font->size + font->size * 0.25f) * scale;
+
+    int codepoint_byte_count, codepoint;
+    int x_pos, y_pos;
+    int index, i;
+
+    int word_start;
+    float word_width;
+    int row_start;
+    float row_width;
+
+    int code_count;
+    int *codes;
+    float *code_widths;
+
+    code_count = 0;
+    codes = malloc((str_len + 1) * sizeof(int));
+    code_widths = malloc((str_len + 1) * sizeof(float));
+ 
+    /* Get the number, size, width and index of each codepoint */
+    for (i = 0; i < str_len;) {
+        codepoint_byte_count = 0;
+        codepoint = atra_utf_getcodepoint(str + i, &codepoint_byte_count);
+        index = atra_font_getglyphindex(font, codepoint);
+
+        if (codepoint == 0x3f) {
+            codepoint_byte_count = 1;
+        }
+        codes[code_count] = codepoint;
+        code_widths[code_count] = spacing + scale * 
+                DECIDE(font->glyphs[index].advance != 0,
+                    font->glyphs[index].advance, font->quads[index].w);
+
+        code_count++;
+        i += codepoint_byte_count;
+    }
+    word_start = 0;
+    word_width = 0.0f;
+    row_start = 0;
+    row_width = 0.0f;
+    x_pos = quad.x;
+    y_pos = quad.y;
+    
+    for (i = 0; i < code_count; i++) {
+        
+        /* Handle newline character */
+        if (codes[i] == '\n') {
+            /* Draw current row */
+            x_pos = quad.x;
+
+            for (; row_start < i; row_start++) {
+                if (!atra_utf_iscodepointbreaking(codes[row_start]) &&
+                        codes[row_start] != '\t') {
+                    atra_font_drawcodepoint_mesh(font,
+                            codes[row_start], x_pos, y_pos, depth, font_size, color);
+                }
+                x_pos += code_widths[row_start];
+            }
+            /* Move to next row */
+            y_pos += row_skip;
+            word_width = 0.0f;
+            row_width = 0.0f;
+            row_start = i + 1;
+
+            continue;
+        } else if (codes[i] < 0x20) {
+            /* TODO: Handle other undrawable crap like '\t' */
+        }
+        word_width += code_widths[i];
+
+        /* Force character wrap if word is longer than line */
+        if ((word_width > quad.w)) {
+            /* Draw current row */
+            x_pos = quad.x;
+
+            for (; row_start < i; row_start++) {
+                if (!atra_utf_iscodepointbreaking(codes[row_start]) &&
+                        codes[row_start] != '\t') {
+                    atra_font_drawcodepoint_mesh(font,
+                            codes[row_start], x_pos, y_pos, depth, font_size, color);
+                }
+                x_pos += code_widths[row_start];
+            }
+            /* Move to next row */
+            y_pos += row_skip;
+            word_width = code_widths[i];
+            row_width = 0.0f;
+        }
+
+        /* Draw the rest of the text if this is the last codepoint */
+        if (i == code_count - 1) {
+            /* Check for wrapping on the current row */
+            if (row_width + word_width > quad.w) {
+                x_pos = quad.x;
+
+                for (; row_start <= word_start; row_start++) {
+                    if (!atra_utf_iscodepointbreaking(codes[row_start]) &&
+                            codes[row_start] != '\t') {
+                        atra_font_drawcodepoint_mesh(font,
+                                codes[row_start], x_pos, y_pos, depth, font_size, color);
+                    }
+                    x_pos += code_widths[row_start];
+                }
+                /* Move to next row */
+                y_pos += row_skip;
+                word_start = i;
+                row_width = word_width;
+                word_width = 0.0f;
+            }
+            /* Draw any remaining codepoints */
+            x_pos = quad.x;
+
+            for (; row_start <= i; row_start++) {
+                if (!atra_utf_iscodepointbreaking(codes[row_start]) &&
+                        codes[row_start] != '\t') {
+                    atra_font_drawcodepoint_mesh(font,
+                            codes[row_start], x_pos, y_pos, depth, font_size, color);
+                }
+                x_pos += code_widths[row_start];
+            }
+            break;
+        }
+
+        /* Add word to row if breaking character is found */
+        if (atra_utf_iscodepointbreaking(codes[i])) {
+            /* Check that word fits in quad (row_width + width) */
+            if (row_width + word_width - code_widths[i] > quad.w) {
+                /* Draw current row */
+                x_pos = quad.x;
+
+                for (; row_start <= word_start; row_start++) {
+                    if (!atra_utf_iscodepointbreaking(codes[row_start]) &&
+                            codes[row_start] != '\t') {
+                        atra_font_drawcodepoint_mesh(font,
+                                codes[row_start], x_pos, y_pos, depth, font_size, color);
+                    }
+                    x_pos += code_widths[row_start];
+                }
+                /* Move to next row */
+                y_pos += row_skip;
+                word_start = i;
+                row_width = word_width;
+                word_width = 0.0f;
+            } else {
+                row_width += word_width;
+                word_start = i;
+                word_width = 0.0f;
+            }
+        }
+    }
+    atra_mesh_end(FALSE);
+
+    free(codes);
+    free(code_widths);
 }
 
 /* Draws a single codepoint character to the screen */
@@ -500,9 +931,62 @@ atra_font_drawcodepoint(Font *font, int codepoint, float x, float y,
 
         atra_gl_vertex2f(top_right[0], top_right[1]);
         atra_gl_texcoord2f((src_quad.x + src_quad.w) / width, src_quad.y / height);
-
     }
     atra_gl_end();
 
     atra_gl_batch_settexture(0);
+}
+
+/* Draws a single codepoint character to the given mesh */
+ATRA_API
+void
+atra_font_drawcodepoint_mesh(const Font *font, int codepoint, float x, float y, float depth,
+        float font_size, Color color)
+{
+    float scale = font_size / font->size;
+    float width, height;
+    int index = atra_font_getglyphindex(font, codepoint);
+
+    Quad dest_quad = {
+        x + font->glyphs[index].offset_x * scale - font->padding * scale,
+        y + font->glyphs[index].offset_y * scale - font->padding * scale,
+        (font->quads[index].w + 2.0f * font->padding) * scale,
+        (font->quads[index].h + 2.0f * font->padding) * scale};
+    
+    Quad src_quad = {
+        font->quads[index].x - font->padding,
+        font->quads[index].y - font->padding,
+        font->quads[index].w + 2.0f * font->padding,
+        font->quads[index].h + 2.0f * font->padding};
+
+    width = font->texture.width;
+    height = font->texture.height;
+
+    vec2 top_left = {0};
+    vec2 top_right = {0};
+    vec2 bot_left = {0};
+    vec2 bot_right = {0};
+
+    float dst_x = dest_quad.x;
+    float dst_y = dest_quad.y;
+
+    top_left[0] = dst_x; top_left[1] = dst_y;
+    top_right[0] = dst_x + dest_quad.w; top_right[1] = dst_y;
+    bot_left[0] = dst_x; bot_left[1] = dst_y + dest_quad.h;
+    bot_right[0] = dst_x + dest_quad.w; bot_right[1] = dst_y + dest_quad.h;
+
+    atra_mesh_vertex3f(top_left[0], top_left[1], depth);
+    atra_mesh_vertex3f(bot_left[0], bot_left[1], depth);
+    atra_mesh_vertex3f(bot_right[0], bot_right[1], depth);
+    atra_mesh_vertex3f(top_right[0], top_right[1], depth);
+    
+    atra_mesh_texcoord2f(src_quad.x / width, src_quad.y / height);
+    atra_mesh_texcoord2f(src_quad.x / width, (src_quad.y + src_quad.h) / height);
+    atra_mesh_texcoord2f((src_quad.x + src_quad.w) / width, (src_quad.y + src_quad.h) / height);
+    atra_mesh_texcoord2f((src_quad.x + src_quad.w) / width, src_quad.y / height);
+
+    atra_mesh_color4ub(color.r, color.g, color.b, color.a);
+    atra_mesh_color4ub(color.r, color.g, color.b, color.a);
+    atra_mesh_color4ub(color.r, color.g, color.b, color.a);
+    atra_mesh_color4ub(color.r, color.g, color.b, color.a);
 }

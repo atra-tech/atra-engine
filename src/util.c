@@ -423,7 +423,7 @@ atra_util_deletefile(const char *path)
  * NOTE: The default root directory is the path to the executable. */
 ATRA_API
 void
-atra_util_setrootdir(const char *)
+atra_util_setrootdir(const char *dir)
 {
 
 #ifdef _WIN32
@@ -565,6 +565,34 @@ atra_utf_tocodepoints(const char *str, int *count)
         codepoints = temp;
     }
     *count = codepoint_count;
+
+    return codepoints;
+}
+
+/* Translates a UTF-8 string to a space-terminated array of codepoints.
+ * Returned memory must be freed. */
+ATRA_API
+int *
+atra_utf_tocodepointsterm(const char *str, int *count)
+{
+    int str_len = strlen(str);
+    int bytes_processed = 0;
+    int codepoint_count = 0;
+    int *temp, *codepoints = calloc(str_len, sizeof(int));
+    int i;
+
+    for (i = 0; i < str_len; codepoint_count++) {
+        codepoints[codepoint_count] = atra_utf_getcodepoint(str + i, &bytes_processed);
+        i += bytes_processed;
+    }
+    codepoint_count++;
+    temp = realloc(codepoints, codepoint_count * sizeof(int));
+
+    if (temp != NULL) {
+        codepoints = temp;
+    }
+    *count = codepoint_count;
+    codepoints[codepoint_count - 1] = ' ';
 
     return codepoints;
 }
@@ -742,6 +770,63 @@ atra_utf_fromcodepointstr(int *codepoints, int length)
     return str;
 }
 
+/* Returns non-zero if the given codepoint matches any UTF-8 breaking characters
+ * in which a word-wrap can occur */
+ATRA_API
+int
+atra_utf_iscodepointbreaking(int codepoint)
+{
+    const int breakers[] = {
+        0x0020, 0x00A0, 0x1680,
+        0x2000, 0x2001, 0x2002,
+        0x2003, 0x2004, 0x2005,
+        0x2006, 0x2008, 0x2009,
+        0x200A, 0x205F, 0x3000
+    };
+    
+    int i, result = 0;
+
+    for (i = 0; i < 15; i++) {
+        result += (codepoint == breakers[i]);
+    }
+
+    return result;
+}
+
+/* Removes a codepoint from a UTF-8 codepoint string in range [start, end) */
+ATRA_API
+void
+atra_utf_removecodepoints(int *codepoints, int *code_count, int start, int end)
+{
+    memmove(codepoints + start, codepoints + end, (*code_count - end) * sizeof(int));
+    *code_count -= end - start;
+}
+
+/* Inserts a given string at the given position
+ * Takes the current codepoint count and returns the new count through `code_count`
+ * Returns a newly allocated codepoint array */
+ATRA_API
+int *
+atra_utf_insertstr(int *codepoints, int *code_count, const char *str, int pos)
+{
+    int *str_codes, *result;
+    int str_len;
+    int result_len;
+
+    result_len = *code_count;
+    str_codes = atra_utf_tocodepoints(str, &str_len);
+    result = realloc(codepoints, (result_len + str_len) * sizeof(int));
+
+    memcpy(result, codepoints, pos * sizeof(int));
+    memcpy(result + pos, str_codes, str_len * sizeof(int));
+    memcpy(result + pos + str_len, codepoints + pos, (result_len - pos) * sizeof(int));
+    *code_count += str_len;
+
+    free(str_codes);
+
+    return result;
+}
+
 
 /*
  *  Text manipulation functions
@@ -818,6 +903,19 @@ atra_util_insertstr(const char *str, const char *insert, int pos)
     result[str_len + insert_len] = '\0';
 
     return result;
+}
+
+/* Removes a set number of characters from a given string */
+ATRA_API
+void
+atra_util_removerange(char *str, int pos, int length)
+{
+    const int str_len = strlen(str);
+
+    for (; pos + length < str_len; pos++) {
+        str[pos] = str[pos + length];
+    }
+    str[pos] = '\0';
 }
 
 /* Joins text with a delimiter.

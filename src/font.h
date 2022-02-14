@@ -12,10 +12,11 @@
 
 #include "common.h"
 #include "texture.h"
+#include "model.h"
 
 #define ATRA_FONT_DEFAULT_SIZE              32  /* 32px-high characters */
 #define ATRA_FONT_DEFAULT_START_GLYPH       32  /* Skips control characters */
-#define ATRA_FONT_DEFAULT_GLYPHCOUNT        95  /* ASCII character set */
+#define ATRA_FONT_DEFAULT_GLYPHCOUNT        223 /* ASCII character set */
 #define ATRA_FONT_DEFAULT_PADDING           2   /* Default character padding */
 
 #define ATRA_FONT_SDF_PADDING               4
@@ -77,7 +78,7 @@ ATRA_API void atra_font_calctextsize(Font *font, const char *str, float font_siz
         float spacing, vec2 *result);
 
 /* Returns the index position of a UTF-8 character in the font */
-ATRA_API int atra_font_getglyphindex(Font *font, int codepoint);
+ATRA_API int atra_font_getglyphindex(const Font *font, int codepoint);
 
 /* Returns an image containing an atlas of a given font's glyphs */
 ATRA_API Image atra_font_generateatlas(Font *font, int packing_method);
@@ -86,12 +87,24 @@ ATRA_API Image atra_font_generateatlas(Font *font, int packing_method);
 ATRA_API void atra_font_drawtext(Font *font, const char *str, float x, float y,
         float font_size, float spacing, Color color);
 
+/* Draws a string to the screen using a given font (mesh version) */
+ATRA_API void atra_font_drawtext_mesh(Mesh *mesh, Font *font, const char *str, float x, float y,
+        float depth, float font_size, float spacing, Color color);
+
 /* Draws a string inside the a given rectangular bound (supports line wrapping) */
 ATRA_API void atra_font_drawtextrect(Font *font, const char *str, Quad quad,
         float font_size, float spacing, int word_wrap, Color color);
 
+/* Draws a string inside the a given rectangular bound (mesh version) */
+ATRA_API void atra_font_drawtextrect_mesh(Mesh *mesh, Font *font, const char *str, Quad quad,
+        float depth, float font_size, float spacing, int word_wrap, Color color);
+
 /* Draws a single codepoint character to the screen */
-ATRA_API void atra_font_drawcodepoint(Font *font, int codepoint, float x, float y,
-        float font_size, Color color);
+ATRA_API void atra_font_drawcodepoint(Font *font, int codepoint,
+        float x, float y, float font_size, Color color);
+
+/* Draws a single codepoint character to the given mesh*/
+ATRA_API void atra_font_drawcodepoint_mesh(const Font *font, int codepoint,
+        float x, float y, float depth, float font_size, Color color);
 
 #endif /* ATRA_FONT_H */

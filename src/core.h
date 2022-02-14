@@ -29,121 +29,261 @@ enum atra_window_flag {
     ATRA_WINDOW_HIGHDPI     = BIT(13),  /* Allow high-DPI mode */
 };
 
-enum atra_key_code {
-    ATRA_KEY_NULL           = 0,    /* NULL, used for no key pressed */
-    ATRA_KEY_SPACE          = 32,   /* Space */
-    ATRA_KEY_APOSTROPHE     = 39,   /* ' */
-    ATRA_KEY_COMMA          = 44,   /* , */
-    ATRA_KEY_MINUS          = 45,   /* - */
-    ATRA_KEY_PERIOD         = 46,   /* . */
-    ATRA_KEY_SLASH          = 47,   /* / */
-    ATRA_KEY_ZERO           = 48,   /* 0 */
-    ATRA_KEY_ONE            = 49,   /* 1 */
-    ATRA_KEY_TWO            = 50,   /* 2 */
-    ATRA_KEY_THREE          = 51,   /* 3 */
-    ATRA_KEY_FOUR           = 52,   /* 4 */
-    ATRA_KEY_FIVE           = 53,   /* 5 */
-    ATRA_KEY_SIX            = 54,   /* 6 */
-    ATRA_KEY_SEVEN          = 55,   /* 7 */
-    ATRA_KEY_EIGHT          = 56,   /* 8 */
-    ATRA_KEY_NINE           = 57,   /* 9 */
-    ATRA_KEY_SEMICOLON      = 59,   /* ; */
-    ATRA_KEY_EQUAL          = 61,   /* = */
-    ATRA_KEY_A              = 65,   /* A | a */
-    ATRA_KEY_B              = 66,   /* B | b */
-    ATRA_KEY_C              = 67,   /* C | c */
-    ATRA_KEY_D              = 68,   /* D | d */
-    ATRA_KEY_E              = 69,   /* E | e */
-    ATRA_KEY_F              = 70,   /* F | f */
-    ATRA_KEY_G              = 71,   /* G | g */
-    ATRA_KEY_H              = 72,   /* H | h */
-    ATRA_KEY_I              = 73,   /* I | i */
-    ATRA_KEY_J              = 74,   /* J | j */
-    ATRA_KEY_K              = 75,   /* K | k */
-    ATRA_KEY_L              = 76,   /* L | l */
-    ATRA_KEY_M              = 77,   /* M | m */
-    ATRA_KEY_N              = 78,   /* N | n */
-    ATRA_KEY_O              = 79,   /* O | o */
-    ATRA_KEY_P              = 80,   /* P | p */
-    ATRA_KEY_Q              = 81,   /* Q | q */
-    ATRA_KEY_R              = 82,   /* R | r */
-    ATRA_KEY_S              = 83,   /* S | s */
-    ATRA_KEY_T              = 84,   /* T | t */
-    ATRA_KEY_U              = 85,   /* U | u */
-    ATRA_KEY_V              = 86,   /* V | v */
-    ATRA_KEY_W              = 87,   /* W | w */
-    ATRA_KEY_X              = 88,   /* X | x */
-    ATRA_KEY_Y              = 89,   /* Y | y */
-    ATRA_KEY_Z              = 90,   /* Z | z */
-    ATRA_KEY_LEFT_BRACKET   = 91,   /* [ */
-    ATRA_KEY_BACKSLASH      = 92,   /* '\' */
-    ATRA_KEY_RIGHT_BRACKET  = 93,   /* ] */
-    ATRA_KEY_GRAVE          = 96,   /* ` */
-    ATRA_KEY_ESCAPE         = 256,  /* Esc */
-    ATRA_KEY_ENTER          = 257,  /* Enter */
-    ATRA_KEY_TAB            = 258,  /* Tab */
-    ATRA_KEY_BACKSPACE      = 259,  /* Backspace */
-    ATRA_KEY_INSERT         = 260,  /* Ins */
-    ATRA_KEY_DELETE         = 261,  /* Del */
-    ATRA_KEY_RIGHT          = 262,  /* Cursor right */
-    ATRA_KEY_LEFT           = 263,  /* Cursor left */
-    ATRA_KEY_DOWN           = 264,  /* Cursor down */
-    ATRA_KEY_UP             = 265,  /* Cursor up */
-    ATRA_KEY_PAGE_UP        = 266,  /* Page up */
-    ATRA_KEY_PAGE_DOWN      = 267,  /* Page down */
-    ATRA_KEY_HOME           = 268,  /* Home */
-    ATRA_KEY_END            = 269,  /* End */
-    ATRA_KEY_CAPS_LOCK      = 280,  /* Caps lock */
-    ATRA_KEY_SCROLL_LOCK    = 281,  /* Scroll down */
-    ATRA_KEY_NUM_LOCK       = 282,  /* Num lock */
-    ATRA_KEY_PRINT_SCREEN   = 283,  /* Print screen */
-    ATRA_KEY_PAUSE          = 284,  /* Pause */
-    ATRA_KEY_F1             = 290,  /* F1 */
-    ATRA_KEY_F2             = 291,  /* F2 */
-    ATRA_KEY_F3             = 292,  /* F3 */
-    ATRA_KEY_F4             = 293,  /* F4 */
-    ATRA_KEY_F5             = 294,  /* F5 */
-    ATRA_KEY_F6             = 295,  /* F6 */
-    ATRA_KEY_F7             = 296,  /* F7 */
-    ATRA_KEY_F8             = 297,  /* F8 */
-    ATRA_KEY_F9             = 298,  /* F9 */
-    ATRA_KEY_F10            = 299,  /* F10 */
-    ATRA_KEY_F11            = 300,  /* F11 */
-    ATRA_KEY_F12            = 301,  /* F12 */
-    ATRA_KEY_KP_0           = 320,  /* Keypad 0 */
-    ATRA_KEY_KP_1           = 321,  /* Keypad 1 */
-    ATRA_KEY_KP_2           = 322,  /* Keypad 2 */
-    ATRA_KEY_KP_3           = 323,  /* Keypad 3 */
-    ATRA_KEY_KP_4           = 324,  /* Keypad 4 */
-    ATRA_KEY_KP_5           = 325,  /* Keypad 5 */
-    ATRA_KEY_KP_6           = 326,  /* Keypad 6 */
-    ATRA_KEY_KP_7           = 327,  /* Keypad 7 */
-    ATRA_KEY_KP_8           = 328,  /* Keypad 8 */
-    ATRA_KEY_KP_9           = 329,  /* Keypad 9 */
-    ATRA_KEY_KP_DECIMAL     = 330,  /* Keypad . */
-    ATRA_KEY_KP_DIVIDE      = 331,  /* Keypad / */
-    ATRA_KEY_KP_MULTIPLY    = 332,  /* Keypad * */
-    ATRA_KEY_KP_SUBTRACT    = 333,  /* Keypad - */
-    ATRA_KEY_KP_ADD         = 334,  /* Keypad + */
-    ATRA_KEY_KP_ENTER       = 335,  /* Keypad Enter */
-    ATRA_KEY_KP_EQUAL       = 336,  /* Keypad = */
-    ATRA_KEY_LEFT_SHIFT     = 340,  /* Shift left */
-    ATRA_KEY_LEFT_CONTROL   = 341,  /* Control left */
-    ATRA_KEY_LEFT_ALT       = 342,  /* Alt left */
-    ATRA_KEY_LEFT_SUPER     = 343,  /* Super left */
-    ATRA_KEY_RIGHT_SHIFT    = 344,  /* Shift right */
-    ATRA_KEY_RIGHT_CONTROL  = 345,  /* Control right */
-    ATRA_KEY_RIGHT_ALT      = 346,  /* Alt right */
-    ATRA_KEY_RIGHT_SUPER    = 347,  /* Super right */
-    ATRA_KEY_KB_MENU        = 348   /* KB menu */
+enum atra_key_scancode {
+    ATRA_KEY_NULL = 0,
+    ATRA_KEY_A = 4,
+    ATRA_KEY_B = 5,
+    ATRA_KEY_C = 6,
+    ATRA_KEY_D = 7,
+    ATRA_KEY_E = 8,
+    ATRA_KEY_F = 9,
+    ATRA_KEY_G = 10,
+    ATRA_KEY_H = 11,
+    ATRA_KEY_I = 12,
+    ATRA_KEY_J = 13,
+    ATRA_KEY_K = 14,
+    ATRA_KEY_L = 15,
+    ATRA_KEY_M = 16,
+    ATRA_KEY_N = 17,
+    ATRA_KEY_O = 18,
+    ATRA_KEY_P = 19,
+    ATRA_KEY_Q = 20,
+    ATRA_KEY_R = 21,
+    ATRA_KEY_S = 22,
+    ATRA_KEY_T = 23,
+    ATRA_KEY_U = 24,
+    ATRA_KEY_V = 25,
+    ATRA_KEY_W = 26,
+    ATRA_KEY_X = 27,
+    ATRA_KEY_Y = 28,
+    ATRA_KEY_Z = 29,
+    ATRA_KEY_1 = 30,
+    ATRA_KEY_2 = 31,
+    ATRA_KEY_3 = 32,
+    ATRA_KEY_4 = 33,
+    ATRA_KEY_5 = 34,
+    ATRA_KEY_6 = 35,
+    ATRA_KEY_7 = 36,
+    ATRA_KEY_8 = 37,
+    ATRA_KEY_9 = 38,
+    ATRA_KEY_0 = 39,
+    ATRA_KEY_RETURN = 40,
+    ATRA_KEY_ESCAPE = 41,
+    ATRA_KEY_BACKSPACE = 42,
+    ATRA_KEY_TAB = 43,
+    ATRA_KEY_SPACE = 44,
+    ATRA_KEY_MINUS = 45,
+    ATRA_KEY_EQUALS = 46,
+    ATRA_KEY_LEFTBRACKET = 47,
+    ATRA_KEY_RIGHTBRACKET = 48,
+    ATRA_KEY_BACKSLASH = 49,
+    ATRA_KEY_NONUSHASH = 50,
+    ATRA_KEY_SEMICOLON = 51,
+    ATRA_KEY_APOSTROPHE = 52,
+    ATRA_KEY_GRAVE = 53,
+    ATRA_KEY_COMMA = 54,
+    ATRA_KEY_PERIOD = 55,
+    ATRA_KEY_SLASH = 56,
+    ATRA_KEY_CAPSLOCK = 57,
+    ATRA_KEY_F1 = 58,
+    ATRA_KEY_F2 = 59,
+    ATRA_KEY_F3 = 60,
+    ATRA_KEY_F4 = 61,
+    ATRA_KEY_F5 = 62,
+    ATRA_KEY_F6 = 63,
+    ATRA_KEY_F7 = 64,
+    ATRA_KEY_F8 = 65,
+    ATRA_KEY_F9 = 66,
+    ATRA_KEY_F10 = 67,
+    ATRA_KEY_F11 = 68,
+    ATRA_KEY_F12 = 69,
+    ATRA_KEY_PRINTSCREEN = 70,
+    ATRA_KEY_SCROLLLOCK = 71,
+    ATRA_KEY_PAUSE = 72,
+    ATRA_KEY_INSERT = 73,
+    ATRA_KEY_HOME = 74,
+    ATRA_KEY_PAGEUP = 75,
+    ATRA_KEY_DELETE = 76,
+    ATRA_KEY_END = 77,
+    ATRA_KEY_PAGEDOWN = 78,
+    ATRA_KEY_RIGHT = 79,
+    ATRA_KEY_LEFT = 80,
+    ATRA_KEY_DOWN = 81,
+    ATRA_KEY_UP = 82,
+    ATRA_KEY_NUMLOCKCLEAR = 83,
+    ATRA_KEY_KP_DIVIDE = 84,
+    ATRA_KEY_KP_MULTIPLY = 85,
+    ATRA_KEY_KP_MINUS = 86,
+    ATRA_KEY_KP_PLUS = 87,
+    ATRA_KEY_KP_ENTER = 88,
+    ATRA_KEY_KP_1 = 89,
+    ATRA_KEY_KP_2 = 90,
+    ATRA_KEY_KP_3 = 91,
+    ATRA_KEY_KP_4 = 92,
+    ATRA_KEY_KP_5 = 93,
+    ATRA_KEY_KP_6 = 94,
+    ATRA_KEY_KP_7 = 95,
+    ATRA_KEY_KP_8 = 96,
+    ATRA_KEY_KP_9 = 97,
+    ATRA_KEY_KP_0 = 98,
+    ATRA_KEY_KP_PERIOD = 99,
+    ATRA_KEY_NONUSBACKSLASH = 100,
+    ATRA_KEY_APPLICATION = 101,
+    ATRA_KEY_POWER = 102,
+    ATRA_KEY_KP_EQUALS = 103,
+    ATRA_KEY_F13 = 104,
+    ATRA_KEY_F14 = 105,
+    ATRA_KEY_F15 = 106,
+    ATRA_KEY_F16 = 107,
+    ATRA_KEY_F17 = 108,
+    ATRA_KEY_F18 = 109,
+    ATRA_KEY_F19 = 110,
+    ATRA_KEY_F20 = 111,
+    ATRA_KEY_F21 = 112,
+    ATRA_KEY_F22 = 113,
+    ATRA_KEY_F23 = 114,
+    ATRA_KEY_F24 = 115,
+    ATRA_KEY_EXECUTE = 116,
+    ATRA_KEY_HELP = 117,
+    ATRA_KEY_MENU = 118,
+    ATRA_KEY_SELECT = 119,
+    ATRA_KEY_STOP = 120,
+    ATRA_KEY_AGAIN = 121,   /**< redo */
+    ATRA_KEY_UNDO = 122,
+    ATRA_KEY_CUT = 123,
+    ATRA_KEY_COPY = 124,
+    ATRA_KEY_PASTE = 125,
+    ATRA_KEY_FIND = 126,
+    ATRA_KEY_MUTE = 127,
+    ATRA_KEY_VOLUMEUP = 128,
+    ATRA_KEY_VOLUMEDOWN = 129,
+    ATRA_KEY_KP_COMMA = 133,
+    ATRA_KEY_KP_EQUALSAS400 = 134,
+    ATRA_KEY_INTERNATIONAL1 = 135,
+    ATRA_KEY_INTERNATIONAL2 = 136,
+    ATRA_KEY_INTERNATIONAL3 = 137,
+    ATRA_KEY_INTERNATIONAL4 = 138,
+    ATRA_KEY_INTERNATIONAL5 = 139,
+    ATRA_KEY_INTERNATIONAL6 = 140,
+    ATRA_KEY_INTERNATIONAL7 = 141,
+    ATRA_KEY_INTERNATIONAL8 = 142,
+    ATRA_KEY_INTERNATIONAL9 = 143,
+    ATRA_KEY_LANG1 = 144,
+    ATRA_KEY_LANG2 = 145,
+    ATRA_KEY_LANG3 = 146,
+    ATRA_KEY_LANG4 = 147,
+    ATRA_KEY_LANG5 = 148,
+    ATRA_KEY_LANG6 = 149,
+    ATRA_KEY_LANG7 = 150,
+    ATRA_KEY_LANG8 = 151,
+    ATRA_KEY_LANG9 = 152,
+    ATRA_KEY_ALTERASE = 153,
+    ATRA_KEY_SYSREQ = 154,
+    ATRA_KEY_CANCEL = 155,
+    ATRA_KEY_CLEAR = 156,
+    ATRA_KEY_PRIOR = 157,
+    ATRA_KEY_RETURN2 = 158,
+    ATRA_KEY_SEPARATOR = 159,
+    ATRA_KEY_OUT = 160,
+    ATRA_KEY_OPER = 161,
+    ATRA_KEY_CLEARAGAIN = 162,
+    ATRA_KEY_CRSEL = 163,
+    ATRA_KEY_EXSEL = 164,
+    ATRA_KEY_KP_00 = 176,
+    ATRA_KEY_KP_000 = 177,
+    ATRA_KEY_THOUSANDSSEPARATOR = 178,
+    ATRA_KEY_DECIMALSEPARATOR = 179,
+    ATRA_KEY_CURRENCYUNIT = 180,
+    ATRA_KEY_CURRENCYSUBUNIT = 181,
+    ATRA_KEY_KP_LEFTPAREN = 182,
+    ATRA_KEY_KP_RIGHTPAREN = 183,
+    ATRA_KEY_KP_LEFTBRACE = 184,
+    ATRA_KEY_KP_RIGHTBRACE = 185,
+    ATRA_KEY_KP_TAB = 186,
+    ATRA_KEY_KP_BACKSPACE = 187,
+    ATRA_KEY_KP_A = 188,
+    ATRA_KEY_KP_B = 189,
+    ATRA_KEY_KP_C = 190,
+    ATRA_KEY_KP_D = 191,
+    ATRA_KEY_KP_E = 192,
+    ATRA_KEY_KP_F = 193,
+    ATRA_KEY_KP_XOR = 194,
+    ATRA_KEY_KP_POWER = 195,
+    ATRA_KEY_KP_PERCENT = 196,
+    ATRA_KEY_KP_LESS = 197,
+    ATRA_KEY_KP_GREATER = 198,
+    ATRA_KEY_KP_AMPERSAND = 199,
+    ATRA_KEY_KP_DBLAMPERSAND = 200,
+    ATRA_KEY_KP_VERTICALBAR = 201,
+    ATRA_KEY_KP_DBLVERTICALBAR = 202,
+    ATRA_KEY_KP_COLON = 203,
+    ATRA_KEY_KP_HASH = 204,
+    ATRA_KEY_KP_SPACE = 205,
+    ATRA_KEY_KP_AT = 206,
+    ATRA_KEY_KP_EXCLAM = 207,
+    ATRA_KEY_KP_MEMSTORE = 208,
+    ATRA_KEY_KP_MEMRECALL = 209,
+    ATRA_KEY_KP_MEMCLEAR = 210,
+    ATRA_KEY_KP_MEMADD = 211,
+    ATRA_KEY_KP_MEMSUBTRACT = 212,
+    ATRA_KEY_KP_MEMMULTIPLY = 213,
+    ATRA_KEY_KP_MEMDIVIDE = 214,
+    ATRA_KEY_KP_PLUSMINUS = 215,
+    ATRA_KEY_KP_CLEAR = 216,
+    ATRA_KEY_KP_CLEARENTRY = 217,
+    ATRA_KEY_KP_BINARY = 218,
+    ATRA_KEY_KP_OCTAL = 219,
+    ATRA_KEY_KP_DECIMAL = 220,
+    ATRA_KEY_KP_HEXADECIMAL = 221,
+    ATRA_KEY_LCTRL = 224,
+    ATRA_KEY_LSHIFT = 225,
+    ATRA_KEY_LALT = 226,
+    ATRA_KEY_LGUI = 227,
+    ATRA_KEY_RCTRL = 228,
+    ATRA_KEY_RSHIFT = 229,
+    ATRA_KEY_RALT = 230,
+    ATRA_KEY_RGUI = 231,
+    ATRA_KEY_MODE = 257,
+    ATRA_KEY_AUDIONEXT = 258,
+    ATRA_KEY_AUDIOPREV = 259,
+    ATRA_KEY_AUDIOSTOP = 260,
+    ATRA_KEY_AUDIOPLAY = 261,
+    ATRA_KEY_AUDIOMUTE = 262,
+    ATRA_KEY_MEDIASELECT = 263,
+    ATRA_KEY_WWW = 264,
+    ATRA_KEY_MAIL = 265,
+    ATRA_KEY_CALCULATOR = 266,
+    ATRA_KEY_COMPUTER = 267,
+    ATRA_KEY_AC_SEARCH = 268,
+    ATRA_KEY_AC_HOME = 269,
+    ATRA_KEY_AC_BACK = 270,
+    ATRA_KEY_AC_FORWARD = 271,
+    ATRA_KEY_AC_STOP = 272,
+    ATRA_KEY_AC_REFRESH = 273,
+    ATRA_KEY_AC_BOOKMARKS = 274,
+    ATRA_KEY_BRIGHTNESSDOWN = 275,
+    ATRA_KEY_BRIGHTNESSUP = 276,
+    ATRA_KEY_DISPLAYSWITCH = 277,
+    ATRA_KEY_KBDILLUMTOGGLE = 278,
+    ATRA_KEY_KBDILLUMDOWN = 279,
+    ATRA_KEY_KBDILLUMUP = 280,
+    ATRA_KEY_EJECT = 281,
+    ATRA_KEY_SLEEP = 282,
+    ATRA_KEY_APP1 = 283,
+    ATRA_KEY_APP2 = 284,
+    ATRA_KEY_AUDIOREWIND = 285,
+    ATRA_KEY_AUDIOFASTFORWARD = 286,
+    ATRA_KEY_TOTAL = 512
 };
 
 enum atra_mouse_button {
+    ATRA_MOUSE_NONE,
     ATRA_MOUSE_LEFT,                /* Left mouse button */
     ATRA_MOUSE_RIGHT,               /* Right mouse button */
     ATRA_MOUSE_MIDDLE,              /* Middle mouse button (mouse wheel) */
     ATRA_MOUSE_X1,                  /* Specialised extra mouse button */
-    ATRA_MOUSE_X2                   /* Specialised extra mouse button */
+    ATRA_MOUSE_X2,                  /* Specialised extra mouse button */
+    ATRA_MOUSE_TOTAL
 };
 
 enum atra_mouse_cursor {
@@ -159,6 +299,7 @@ enum atra_mouse_cursor {
     ATRA_CURSOR_RESIZE_ALL,         /* Omni-directional resize cursor */
     ATRA_CURSOR_NOT_ALLOWED,        /* Slashed-circle to indicate invalidity */
     ATRA_CURSOR_POINTING_HAND,      /* Pointing hand (activate) style */
+    ATRA_CURSOR_TOTAL
 };
 
 enum atra_gamepad_button {
@@ -362,7 +503,10 @@ ATRA_API i32 atra_key_getpressed(void);
 ATRA_API const char * atra_key_gettext(void);
 
 /* Enables or disables text input mode */
-ATRA_API void atra_key_settextinput(int active);
+ATRA_API void atra_key_settextinputmode(int active);
+
+/* Returns 1 if text input mode is enabled */
+ATRA_API int atra_key_textinputenabled(void);
 
 /* Returns a pointer to the internal composition text */
 ATRA_API const char * atra_key_getcomptext(void);
@@ -424,6 +568,9 @@ ATRA_API int atra_mouse_ispressed(i32 button);
 /* Returns 1 if mouse button had transitioned up in the last frame */
 ATRA_API int atra_mouse_isreleased(i32 button);
 
+/* Returns 1 if mouse is locked */
+ATRA_API int atra_mouse_islocked(void);
+
 /* Sets x and y to window-space coordinates of the mouse cursor */
 ATRA_API void atra_mouse_getpos(int *x, int *y);
 
@@ -438,6 +585,9 @@ ATRA_API float atra_mouse_getwheelmovement(void);
 
 /* Sets the mouse cursor display style */
 ATRA_API void atra_mouse_setcursor(i32 cursor);
+
+/* Sets the mouse cursor image to use when in a specific cursor style */
+ATRA_API void atra_mouse_setcursorimage(i32 cursor, Image *image, int hot_x, int hot_y);
 
 /* Hides the mouse cursor and locks it to the centre of the screen */
 ATRA_API void atra_mouse_lock(void);

@@ -59,8 +59,8 @@ MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
         atra_log_print(LOG_WARN, "<%s> (%s) gl: %s",
                 gl_type_str[type], gl_source_str[source], message);
     } else if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
-        atra_log_print(LOG_INFO, "<%s> (%s) gl: %s",
-                gl_type_str[type], gl_source_str[source], message);
+        /*atra_log_print(LOG_INFO, "<%s> (%s) gl: %s",
+                gl_type_str[type], gl_source_str[source], message);*/
     }
 }
 

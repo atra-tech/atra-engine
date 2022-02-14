@@ -110,6 +110,10 @@ ATRA_API u8 * atra_util_decompressbytes(u8 *data, int comp_length, int *length);
  * Returned memory must be freed. */
 ATRA_API int * atra_utf_tocodepoints(const char *str, int *count);
 
+/* Translates a UTF-8 string to a space-terminated array of codepoints.
+ * Returned memory must be freed. */
+ATRA_API int * atra_utf_tocodepointsterm(const char *str, int *count);
+
 /* Returns the total number of codepoints in a UTF-8 string */
 ATRA_API int atra_utf_getcodepointcount(const char *str);
 
@@ -123,6 +127,17 @@ ATRA_API const char * atra_utf_fromcodepoint(int codepoint, int *size);
 /* Translates a codepoint array into a UTF-8 string.
  * Returned memory must be freed. */
 ATRA_API char * atra_utf_fromcodepointstr(int *codepoints, int length);
+
+/* Returns non-zero if the given codepoint matches any UTF-8 breaking characters
+ * in which a word-wrap can occur */
+ATRA_API int atra_utf_iscodepointbreaking(int codepoint);
+
+/* Removes a codepoint from a UTF-8 codepoint string in range [start, end) */
+ATRA_API void atra_utf_removecodepoints(int *codepoints, int *code_count, int start, int end);
+
+/* Inserts a given string at the given position
+ * Returns a newly allocated codepoint array */
+ATRA_API int * atra_utf_insertstr(int *codepoints, int *code_count, const char *str, int pos);
 
 
 /*
@@ -145,6 +160,9 @@ ATRA_API char * atra_util_replacestr(char *str, const char *replace, const char 
  * Returned string must be freed. */
 ATRA_API char * atra_util_insertstr(const char *str, const char *insert, int pos);
 
+/* Removes a set number of characters from a given string */
+ATRA_API void atra_util_removerange(char *str, int pos, int length);
+
 /* Joins text with a delimiter.
  * Returned string must be freed. */
 ATRA_API char * atra_util_joinstr(List *strs, const char *delim);
@@ -166,7 +184,6 @@ ATRA_API char * atra_util_toupper(const char *str);
 /* Converts a string to lower-case characters.
  * Returned string must be freed. */
 ATRA_API char * atra_util_tolower(const char *str);
-
 
 /*
  *  Random number generation

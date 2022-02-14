@@ -457,7 +457,7 @@ atra_hashmap_create(size_t key_size, size_t val_size,
     map.occupied = 0;
     map.key_size = key_size;
     map.val_size = val_size;
-    map.keys = malloc(map.size * key_size);
+    map.keys = calloc(map.size, key_size);
     map.vals = malloc(map.size * val_size);
     map.hash = hash;
     map.equal = eq;
@@ -481,7 +481,7 @@ int
 atra_hashmap_add(HashMap *map, const void *key, const void *val)
 {
     size_t i, hash;
-    double loadfactor = (map->occupied + 1) / (double)map->size;
+    const double loadfactor = (map->occupied + 1) / (double)map->size;
     i8 *key_dest, *val_dest;
 
     if (loadfactor > ATRA_HASHMAP_MAX_LOAD) {
@@ -501,6 +501,7 @@ atra_hashmap_add(HashMap *map, const void *key, const void *val)
                     "hashmap: duplicate key found");
             return 0;
         }
+
     }
     map->occupied++;
 
@@ -588,11 +589,11 @@ atra_hashmap_grow(HashMap *map)
     free(vals);
 }
 
+/* Returns 1 if the key at the given index is empty (NULL) */
 ATRA_INLINE
 int
 atra_hashmap_keyisempty(HashMap *map, size_t index)
 {
-    const static char nulls[64] = {0};
     size_t size, i;
     int found;
     i8 *key_pos;
@@ -602,21 +603,19 @@ atra_hashmap_keyisempty(HashMap *map, size_t index)
     size = map->size;
     key_pos = map->keys + index * map->key_size; 
 
-    while (size > 64) {
-        found += memcmp(key_pos + i, nulls, map->key_size) != 0;
-        i += 64;
-        size -= 64;
+    for (i = 0; i < size; i++) {
+        found += *(key_pos + i) != 0;
     }
-    found += memcmp(key_pos + i, nulls, size) != 0;
 
-    return found == 0;
+    return (found == 0);
 }
 
 ATRA_API
 size_t
 atra_hashmap_str_hash(const void *str)
 {
-    const i8 *pstr = str;
+    //const char *pstr = *(char **)str;
+    const char *pstr = str;
     u64 hash = 0;
     int c;
 
@@ -631,6 +630,10 @@ ATRA_API
 int
 atra_hashmap_str_eq(const void *s1, const void *s2)
 {
+/*    const char * const *s1_str = s1;
+    const char * const *s2_str = s2;
+
+    return strcmp(*s1_str, *s2_str) == 0;*/
     return strcmp(s1, s2) == 0;
 }
 

@@ -70,10 +70,15 @@
 #define BIT_SET(f, b) ((f) |= (b))
 #define BIT_CLR(f, b) ((f) &= ~(b))
 #define BIT_TOG(f, b) ((f) ^= (b))
-#define BIT_CHK(f, b) ((f) & (b))
+#define BIT_CHK(f, b) (((f) & (b)) != 0)
 
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+/* Branchless decider between two numbers */
+#define DECIDE(cond, t, f) \
+        ((((cond) != 0) * (t)) + \
+        (((cond) == 0) * (f)))
+
+#define MIN(a, b) DECIDE((a) < (b), (a), (b))
+#define MAX(a, b) DECIDE((a) > (b), (a), (b))
 
 #define DEG_TO_RAD(x) ((x) * (PI / 180))
 #define RAD_TO_DEG(x) (((x) / PI) * 180)

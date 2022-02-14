@@ -59,8 +59,7 @@ ATRA_API void atra_list_add(List *restrict list, const void *restrict data);
 ATRA_API void * atra_list_get(List *restrict list, size_t index);
 
 /* Copies the list contents at `index` into `dest` */
-ATRA_API void atra_list_copyelem(List *restrict list, size_t index,
-        void *restrict dest);
+ATRA_API void atra_list_copyelem(List *restrict list, size_t index, void *restrict dest);
 
 /* Returns a pointer to the last element in the list */
 ATRA_API void * atra_list_top(List *restrict list);
