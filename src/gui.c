@@ -655,6 +655,7 @@ ATRA_API
 void
 atra_gui_stop(void)
 {
+    atra_font_delete(&gui.font);
     atra_list_delete(&gui.window_stack);
     atra_hashmap_delete(&gui.window_map);
     atra_hashmap_delete(&gui.elem_map);
@@ -2070,23 +2071,28 @@ atra_gui_elem_calctextcursorpos(GUIElem *elem)
                 if (mx < x_pos + code_width) {
                     if (mx > x_pos + code_width * 0.5f) {
                         /* Select next char if codepoint is not at end of line */
+                        free(code_widths);
                         return code_pos + j + DECIDE(j < row_length - 1, 1, 0);
                     } else {
                         /* Select current char */
+                        free(code_widths);
                         return code_pos + j;
                     }
                 } else if (j == row_length - 1) {
                     /* Return last codepoint in row */
+                    free(code_widths);
                     return code_pos + row_length - 1;
                 }
                 x_pos += code_width;
             }
         } else if (i == row_count - 1) {
             /* Final row, force cursor to final codepoint */
+            free(code_widths);
             return elem->code_count - 1;
         }
         code_pos += row_length;
     }
+    free(code_widths);
 
     return code_pos;
 }

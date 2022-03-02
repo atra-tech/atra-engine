@@ -11,7 +11,7 @@
 #ifndef ATRA_COMMON_H
 #define ATRA_COMMON_H
 
-#define ATRA_VERSION "DEV 0.1.6"
+#define ATRA_VERSION "ALPHA 1.0.0"
 
 #ifdef __linux__
     #define _POSIX_C_SOURCE 200112L 

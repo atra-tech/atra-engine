@@ -502,6 +502,7 @@ atra_mesh_delete(Mesh *mesh)
     for (i = 0; i < ATRA_MAX_MESH_VERTEX_BUFFERS; i++) {
         atra_gl_vbo_delete(mesh->vbo_ids[i]);
     }
+    free(mesh->im);
     free(mesh->vbo_ids);
 
     free(mesh->verts);
@@ -1268,12 +1269,12 @@ atra_anim_delete(ModelAnim *anim)
 /* Deletes model animation array data */
 ATRA_API
 void
-atra_anim_deletearray(ModelAnim **anims, int count)
+atra_anim_deletearray(ModelAnim *anims, int count)
 {
     int i;
 
     for (i = 0; i < count; i++) {
-        atra_anim_delete(anims[i]);
+        atra_anim_delete(anims + i);
     }
     free(anims);
 }

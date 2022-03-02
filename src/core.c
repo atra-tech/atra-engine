@@ -182,10 +182,11 @@ atra_engine_start(int width, int height, const char *title)
     atra_window_init(width, height, title);
     atra_input_init();
     atra_time_init();
-    atra_mempool_init(32 * 1024 * 1024);
+    //atra_mempool_init(32 * 1024 * 1024);
     atra_gl_init(width, height);
     atra_gui_init();
     atra_audio_init();
+    atra_net_init();
 }
 
 ATRA_API
@@ -208,16 +209,17 @@ atra_engine_stop(void)
     for (i = 0; i < ATRA_CURSOR_TOTAL; i++) {
         SDL_FreeCursor(input.mouse.cursors[i]);
 
-        if (input.mouse.csurf[i] == NULL) {
+        if (input.mouse.csurf[i] != NULL) {
             SDL_FreeSurface(input.mouse.csurf[i]);
         }
     }
+    atra_net_stop();
     atra_audio_stop();
     atra_gui_stop();
     atra_state_stop();
     atra_gl_stop();
     atra_log_stop();
-    atra_mempool_stop();
+    //atra_mempool_stop();
 
     SDL_DestroyWindow(window.window);
     SDL_GL_DeleteContext(window.context);
@@ -377,7 +379,7 @@ atra_context_init(int width, int height)
         atra_util_sdl_printerror();
         atra_util_die(NULL);
     }
-    SDL_GL_MakeCurrent(window.window, window.context);
+    //SDL_GL_MakeCurrent(window.window, window.context);
 
     if (gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress) == 0) {
         atra_log_print(LOG_FATAL, "core: Unable to set GLAD process loader");
@@ -1261,25 +1263,6 @@ atra_mouse_getwheelmovement(void)
     return input.mouse.wheelmove_curr;
 }
 
-/* Returns a new SDL_Surface, constructed from an Atra Engine image type */
-ATRA_INLINE
-SDL_Surface *
-atra_image_tosurface(Image *image)
-{
-    SDL_Surface *surface = calloc(1, sizeof(SDL_Surface));
-    u8 *pixels;
-
-    pixels = malloc(image->width * image->height * 4);
-    memcpy(pixels, image->data, image->width * image->height * 4);
-
-    surface->w = image->width;
-    surface->h = image->height;
-    surface->pitch = surface->w * 4;
-    surface->pixels = pixels;
-
-    return surface;
-}
-
 /* Sets the mouse cursor display style */
 ATRA_API
 void
@@ -1293,7 +1276,10 @@ ATRA_API
 void
 atra_mouse_setcursorimage(i32 cursor, Image *image, int hot_x, int hot_y)
 {
-    SDL_Surface *surface = atra_image_tosurface(image);
+    SDL_Surface *surface;
+
+    surface = SDL_CreateRGBSurfaceFrom(image->data, image->width, image->height,
+            32, image->width * 4, 0x000000FF, 0x0000FF00, 0X00FF0000, 0xFF000000);
 
     SDL_FreeCursor(input.mouse.cursors[cursor]);
 

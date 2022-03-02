@@ -111,7 +111,7 @@ atra_image_subcopy(Image *image, const IQuad rect)
     dst = new_img.data;
 
     for (i = rect.y; i < rect.y + rect.h; i++) {
-        memcpy(src, dst, rect.w * 4);
+        memcpy(dst, src, rect.w * 4);
         src += rect.w * 4;
         dst += rect.w * 4;
     }
@@ -436,6 +436,61 @@ atra_image_genperlinnoise(int w, int h, int x_offset, int y_offset, float scale)
     return image;
 }
 
+/* Returns a new image with the contents of the screen buffer */
+ATRA_API
+Image
+atra_image_getscreen(void)
+{
+    Image image;
+    i8 *scr_data, *img_data;
+    int i, j;
+
+    image.width = atra_window_getwidth();
+    image.height = atra_window_getheight();
+    image.mipmaps = 1;
+    image.data = malloc(image.width * image.height * 4);
+    scr_data = malloc(image.width * image.height * 4);
+    img_data = image.data;
+    
+    glReadPixels(0, 0, image.width, image.height, GL_RGBA, GL_UNSIGNED_BYTE, scr_data);
+
+    for (i = image.height - 1; i >= 0; i--) {
+        for (j = 0; j < image.width; j++) {
+            const int scr_index = j + i * image.width * 4;
+            const int img_index = j + (image.height - i - 1) * image.width * 4;
+
+            img_data[img_index] = scr_data[scr_index];
+
+            if ((j + 1) % 4 == 0) {
+                img_data[img_index] = 0xFF;
+            }
+        }
+    }
+    free(scr_data);
+
+    return image;
+}
+
+/* Converts a quad to a set of UV coordinates and stores them in `uvs` */
+ATRA_API
+void
+atra_image_quadtouvs(const Image *image, IQuad quad, float *uvs)
+{
+    const float pix_w = 1.0f / image->width;
+    const float pix_h = 1.0f / image->height;
+    const float offset_x = pix_w * 0.001f;
+    const float offset_y = pix_h * 0.001f;
+
+    const float x0 = quad.x * pix_w + offset_x;
+    const float y0 = quad.y * pix_h + offset_y;
+    const float x1 = (quad.x + quad.w) * pix_w - offset_x;
+    const float y1 = (quad.y + quad.y) * pix_h - offset_y;
+
+    uvs[0] = x0; uvs[1] = y1;
+    uvs[2] = x0; uvs[3] = y0;
+    uvs[4] = x1; uvs[5] = y0;
+    uvs[5] = x1; uvs[7] = y1;
+}
 
 /*
  *  GPU/VRAM texture functions
@@ -700,37 +755,23 @@ atra_texture_getdata(Texture *tex)
     return image;
 }
 
-/* Returns a new image with the contents of the screen buffer */
+/* Converts a quad to a set of UV coordinates and stores them in `uvs` */
 ATRA_API
-Image
-atra_texture_getscreen(void)
+void
+atra_texture_quadtouvs(const Texture *tex, IQuad quad, float *uvs)
 {
-    Image image;
-    i8 *scr_data, *img_data;
-    int i, j;
+    const float pix_w = 1.0f / tex->width;
+    const float pix_h = 1.0f / tex->height;
+    const float offset_x = pix_w * 0.001f;
+    const float offset_y = pix_h * 0.001f;
 
-    image.width = atra_window_getwidth();
-    image.height = atra_window_getheight();
-    image.mipmaps = 1;
-    image.data = malloc(image.width * image.height * 4);
-    scr_data = malloc(image.width * image.height * 4);
-    img_data = image.data;
-    
-    glReadPixels(0, 0, image.width, image.height, GL_RGBA, GL_UNSIGNED_BYTE, scr_data);
+    const float x0 = quad.x * pix_w + offset_x;
+    const float y0 = quad.y * pix_h + offset_y;
+    const float x1 = (quad.x + quad.w) * pix_w - offset_x;
+    const float y1 = (quad.y + quad.y) * pix_h - offset_y;
 
-    for (i = image.height - 1; i >= 0; i--) {
-        for (j = 0; j < image.width; j++) {
-            const int scr_index = j + i * image.width * 4;
-            const int img_index = j + (image.height - i - 1) * image.width * 4;
-
-            img_data[img_index] = scr_data[scr_index];
-
-            if ((j + 1) % 4 == 0) {
-                img_data[img_index] = 0xFF;
-            }
-        }
-    }
-    free(scr_data);
-
-    return image;
+    uvs[0] = x0; uvs[1] = y1;
+    uvs[2] = x0; uvs[3] = y0;
+    uvs[4] = x1; uvs[5] = y0;
+    uvs[5] = x1; uvs[7] = y1;
 }

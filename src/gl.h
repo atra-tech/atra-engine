@@ -482,6 +482,12 @@ ATRA_API uint atra_gl_vbo_create(void *buffer, int size, int dynamic);
 /* Creates a new element buffer (usually for indices) */
 ATRA_API uint atra_gl_ebo_create(void *buffer, int size, int dynamic);
 
+/* Deletes and replaces a vertex buffer with new data */
+ATRA_API void atra_gl_vbo_overwrite(uint vbo_id, void *data, int size, int dynamic);
+
+/* Deletes and replaces a vertex buffer with new data */
+ATRA_API void atra_gl_ebo_overwrite(uint ebo_id, void *data, int size, int dynamic);
+
 /* Updates a vertex buffer with new data */
 ATRA_API void atra_gl_vbo_update(uint vbo_id, void *data, int size, int offset);
 

@@ -39,11 +39,11 @@ atra_shader_compile(const char *code, int type)
 
         if (max_len > 0) {
             int len = 0;
-            char *log = atra_mempool_calloc(max_len, sizeof(char));
+            char *log = calloc(max_len, sizeof(char));
             glGetShaderInfoLog(shader, max_len, &len, log);
             atra_log_print(LOG_ERROR, "shader: shader [%d] compilation error: " \
                     "%s", shader, log);
-            atra_mempool_free(log);
+            free(log);
         }
     }
 
@@ -70,7 +70,7 @@ atra_shader_loadbuffer(const char *vs_code, const char *fs_code)
     uint v_shader, f_shader;
     int i, success, max_len, len;
 
-    shader.locs = atra_mempool_calloc(ATRA_MAX_SHADER_ATTRIBS, sizeof(int));
+    shader.locs = calloc(ATRA_MAX_SHADER_ATTRIBS, sizeof(int));
 
     for (i = 0; i < ATRA_MAX_SHADER_ATTRIBS; i++) {
         shader.locs[i] = -1;
@@ -101,11 +101,11 @@ atra_shader_loadbuffer(const char *vs_code, const char *fs_code)
 
         if (max_len > 0) {
             len = 0;
-            char *log = atra_mempool_calloc(max_len, sizeof(char));
+            char *log = calloc(max_len, sizeof(char));
             glGetProgramInfoLog(shader.prog_id, max_len, &len, log);
             atra_log_print(LOG_ERROR, "shader: shader [%d] linker error: " \
                     "%s", shader.prog_id, log);
-            atra_mempool_free(log);
+            free(log);
         }
         glDeleteProgram(shader.prog_id);
 
@@ -204,5 +204,5 @@ void
 atra_shader_destroy(Shader *shader)
 {
     glDeleteProgram(shader->prog_id);
-    atra_mempool_free(shader->locs);
+    free(shader->locs);
 }

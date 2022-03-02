@@ -123,6 +123,8 @@ ATRA_API Image atra_image_genperlinnoise(int w, int h, int x_offset, int y_offse
 /* Returns a new image with the contents of the screen buffer */
 ATRA_API Image atra_image_getscreen(void);
 
+/* Converts a quad to a set of UV coordinates and stores them in `uvs` */
+ATRA_API void atra_image_quadtouvs(const Image *image, IQuad quad, float *uvs);
 
 /*
  *  GPU/VRAM texture functions
@@ -177,6 +179,8 @@ ATRA_API void atra_texture_writesub(Texture *tex, int x, int y, int w, int h,
 /* Returns a new image with texture data from the GPU */
 ATRA_API Image atra_texture_getdata(Texture *tex);
 
+/* Converts a quad to a set of UV coordinates and stores them in `uvs` */
+ATRA_API void atra_texture_quadtouvs(const Texture *image, IQuad quad, float *uvs);
 
 /*
  *  Texture Array Functions 

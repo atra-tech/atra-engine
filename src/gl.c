@@ -110,8 +110,8 @@ atra_gl_init(int width, int height)
     gl_state.fbuffer_width = width;
     gl_state.fbuffer_height = height;
 
-    glEnable(GL_DEBUG_OUTPUT);
-    glDebugMessageCallbackARB(MessageCallback, NULL);
+    //glEnable(GL_DEBUG_OUTPUT);
+    //glDebugMessageCallbackARB(MessageCallback, NULL);
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClearDepth(1.0f);
@@ -1068,6 +1068,28 @@ atra_gl_ebo_create(void *buffer, int size, int dynamic)
     return ebo_id;
 }
 
+/* Deletes and replaces a vertex buffer with new data */
+ATRA_API
+void
+atra_gl_vbo_overwrite(uint vbo_id, void *data, int size, int dynamic)
+{
+    const uint draw_mode = dynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW;
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_id);
+    glBufferData(GL_ARRAY_BUFFER, size, data, draw_mode);
+}
+
+/* Deletes and replaces a vertex buffer with new data */
+ATRA_API
+void
+atra_gl_ebo_overwrite(uint ebo_id, void *data, int size, int dynamic)
+{
+    const uint draw_mode = dynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW;
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, draw_mode);
+}
+
 /* Updates a vertex buffer with new data */
 ATRA_API
 void
@@ -1858,11 +1880,11 @@ atra_gl_shader_compile(const char *code, int type)
 
         if (max_len > 0) {
             int len = 0;
-            char *log = atra_mempool_calloc(max_len, sizeof(char));
+            char *log = calloc(max_len, sizeof(char));
             glGetShaderInfoLog(shader, max_len, &len, log);
             atra_log_print(LOG_ERROR, "shader: shader [%d] compilation error: " \
                     "%s", shader, log);
-            atra_mempool_free(log);
+            free(log);
         }
     }
 
@@ -1874,11 +1896,8 @@ ATRA_API
 uint
 atra_gl_shader_link(uint vs_id, uint fs_id)
 {
-    Shader shader = {0};
     uint prog_id;
     int success, max_len, len;
-
-    shader.locs = atra_mempool_calloc(ATRA_MAX_SHADER_ATTRIBS, sizeof(int));
 
     prog_id = glCreateProgram();
 
@@ -1903,11 +1922,11 @@ atra_gl_shader_link(uint vs_id, uint fs_id)
 
         if (max_len > 0) {
             len = 0;
-            char *log = atra_mempool_calloc(max_len, sizeof(char));
+            char *log = calloc(max_len, sizeof(char));
             glGetProgramInfoLog(prog_id, max_len, &len, log);
             atra_log_print(LOG_ERROR, "shader: shader [%d] linker error: " \
                     "%s", prog_id, log);
-            atra_mempool_free(log);
+            free(log);
         }
         glDeleteProgram(prog_id);
 

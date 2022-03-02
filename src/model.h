@@ -277,7 +277,7 @@ ATRA_API void atra_anim_updatemodel(ModelAnim *anim, Model *model, int frame);
 ATRA_API void atra_anim_delete(ModelAnim *anim);
 
 /* Deletes model animation array data */
-ATRA_API void atra_anim_deletearray(ModelAnim **anims, int count);
+ATRA_API void atra_anim_deletearray(ModelAnim *anims, int count);
 
 /* Returns 1 if the model animation skeleton is a match */
 ATRA_API int atra_anim_modelskeletonmatch(Model *model, ModelAnim *anim);
