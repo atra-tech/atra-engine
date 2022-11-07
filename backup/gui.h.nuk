@@ -1,0 +1,769 @@
+/*
+ *  ATRA ENGINE
+ *
+ *  Copyright (c) 2019-2021 Robert Saarloos, All rights reserved
+ *
+ *  gui.h - An immediate mode GUI module integrated with the engine.
+ *
+ * */
+
+#ifndef ATRA_GUI_H
+#define ATRA_GUI_H
+
+#include "common.h"
+#include "texture.h"
+#include "font.h"
+
+#define ATRA_GUI_WINDOW_MAX_NAME_LEN                128
+#define ATRA_GUI_MAX_LAYOUT_ROW_TEMPLATE_COLUMNS    16
+#define ATRA_GUI_MAX_CHART_SLOT                     4
+
+enum gui_style_item_type {
+    ATRA_GUI_STYLE_COLOR,   /* Drawn with a flat color */
+    ATRA_GUI_STYLE_IMAGE,   /* Drawn using an image */
+    ATRA_GUI_STYLE_GRID     /* Drawn as a grid of nine quads using an image */
+};
+
+enum gui_style_colors {
+    ATRA_GUI_COLOR_TEXT,
+    ATRA_GUI_COLOR_WINDOW,
+    ATRA_GUI_COLOR_HEADER,
+    ATRA_GUI_COLOR_BORDER,
+    ATRA_GUI_COLOR_BUTTON,
+    ATRA_GUI_COLOR_BUTTON_HOVER,
+    ATRA_GUI_COLOR_BUTTON_ACTIVE,
+    ATRA_GUI_COLOR_TOGGLE,
+    ATRA_GUI_COLOR_TOGGLE_HOVER,
+    ATRA_GUI_COLOR_TOGGLE_CURSOR,
+    ATRA_GUI_COLOR_SELECT,
+    ATRA_GUI_COLOR_SELECT_ACTIVE,
+    ATRA_GUI_COLOR_SLIDER,
+    ATRA_GUI_COLOR_SLIDER_CURSOR,
+    ATRA_GUI_COLOR_SLIDER_CURSOR_HOVER,
+    ATRA_GUI_COLOR_SLIDER_CURSOR_ACTIVE,
+    ATRA_GUI_COLOR_PROPERTY,
+    ATRA_GUI_COLOR_EDIT,
+    ATRA_GUI_COLOR_EDIT_CURSOR,
+    ATRA_GUI_COLOR_COMBO,
+    ATRA_GUI_COLOR_CHART,
+    ATRA_GUI_COLOR_CHART_COLOR,
+    ATRA_GUI_COLOR_CHART_COLOR_HIGHLIGHT,
+    ATRA_GUI_COLOR_SCROLLBAR,
+    ATRA_GUI_COLOR_SCROLLBAR_CURSOR,
+    ATRA_GUI_COLOR_SCROLLBAR_CURSOR_HOVER,
+    ATRA_GUI_COLOR_SCROLLBAR_CURSOR_ACTIVE,
+    ATRA_GUI_COLOR_TAB_HEADER,
+    ATRA_GUI_COLOR_COUNT
+};
+
+enum gui_direction {
+    ATRA_GUI_UP,
+    ATRA_GUI_RIGHT,
+    ATRA_GUI_DOWN,
+    ATRA_GUI_LEFT
+};
+
+enum gui_orientation {
+    ATRA_GUI_HORIZONTAL,
+    ATRA_GUI_VERTICAL
+};
+
+enum gui_modifiability {
+    ATRA_GUI_FIXED,
+    ATRA_GUI_MODIFIABLE
+};
+
+enum gui_layout_format {
+    ATRA_GUI_LAYOUT_STATIC,
+    ATRA_GUI_LAYOUT_DYNAMIC
+};
+
+enum gui_layout_states {
+    ATRA_GUI_ELEM_INVALID,
+    ATRA_GUI_ELEM_VALID,
+    ATRA_GUI_ELEM_ROM
+};
+
+enum gui_elem_states {
+    ATRA_GUI_ELEM_STATE_MODIFIED    = BIT(0),
+    ATRA_GUI_ELEM_STATE_INACTIVE    = BIT(1),
+    ATRA_GUI_ELEM_STATE_ENTERED     = BIT(2),
+    ATRA_GUI_ELEM_STATE_HOVER       = BIT(3),
+    ATRA_GUI_ELEM_STATE_ACTIVATED   = BIT(4),
+    ATRA_GUI_ELEM_STATE_LEFT        = BIT(5),
+    ATRA_GUI_ELEM_STATE_HOVERED     = ATRA_GUI_ELEM_STATE_HOVER | ATRA_GUI_ELEM_STATE_MODIFIED,
+    ATRA_GUI_ELEM_STATE_ACTIVE      = ATRA_GUI_ELEM_STATE_ACTIVATED | ATRA_GUI_ELEM_STATE_MODIFIED
+};
+
+enum gui_text_align {
+    ATRA_GUI_TEXT_ALIGN_LEFT    = BIT(0),
+    ATRA_GUI_TEXT_ALIGN_CENTRED = BIT(1),
+    ATRA_GUI_TEXT_ALIGN_RIGHT   = BIT(2),
+    ATRA_GUI_TEXT_ALIGN_TOP     = BIT(3),
+    ATRA_GUI_TEXT_ALIGN_MIDDLE  = BIT(4),
+    ATRA_GUI_TEXT_ALIGN_BOTTOM  = BIT(5)
+};
+
+enum gui_text_alignment {
+    ATRA_GUI_TEXT_LEFT = ATRA_GUI_TEXT_ALIGN_MIDDLE | ATRA_GUI_TEXT_ALIGN_LEFT,
+    ATRA_GUI_TEXT_MIDDLE = ATRA_GUI_TEXT_ALIGN_MIDDLE | ATRA_GUI_TEXT_ALIGN_CENTRED,
+    ATRA_GUI_TEXT_RIGHT = ATRA_GUI_TEXT_ALIGN_MIDDLE | ATRA_GUI_TEXT_ALIGN_RIGHT
+};
+
+enum gui_text_edit_flags {
+    ATRA_GUI_EDIT_DEFAULT               = 0,
+    ATRA_GUI_EDIT_READONLY              = BIT(0),
+    ATRA_GUI_EDIT_AUTOSELECT            = BIT(1),
+    ATRA_GUI_EDIT_SIGENTER              = BIT(2),
+    ATRA_GUI_EDIT_ALLOWTAB              = BIT(3),
+    ATRA_GUI_EDIT_NOCURSOR              = BIT(4),
+    ATRA_GUI_EDIT_SELECTABLE            = BIT(5),
+    ATRA_GUI_EDIT_CLIPBOARD             = BIT(6),
+    ATRA_GUI_EDIT_CTRL_ENTER_NEWLINE    = BIT(7),
+    ATRA_GUI_EDIT_NO_HSCROLL            = BIT(8),
+    ATRA_GUI_EDIT_ALWAYSINSERT          = BIT(9),
+    ATRA_GUI_EDIT_MULTILINE             = BIT(10),
+    ATRA_GUI_EDIT_GOTO_END_ON_ACTIVATE  = BIT(11),
+};
+
+enum gui_text_edit_types {
+    ATRA_GUI_EDIT_SIMPLE = ATRA_GUI_EDIT_ALWAYSINSERT,
+    ATRA_GUI_EDIT_FIELD  = ATRA_GUI_EDIT_SIMPLE |
+                           ATRA_GUI_EDIT_SELECTABLE |
+                           ATRA_GUI_EDIT_CLIPBOARD,
+    ATRA_GUI_EDIT_BOX    = ATRA_GUI_EDIT_ALWAYSINSERT |
+                           ATRA_GUI_EDIT_SELECTABLE |
+                           ATRA_GUI_EDIT_MULTILINE |
+                           ATRA_GUI_EDIT_ALLOWTAB |
+                           ATRA_GUI_EDIT_CLIPBOARD,
+    ATRA_GUI_EDIT_EDITOR = ATRA_GUI_EDIT_SELECTABLE |
+                           ATRA_GUI_EDIT_MULTILINE |
+                           ATRA_GUI_EDIT_ALLOWTAB |
+                           ATRA_GUI_EDIT_CLIPBOARD
+};
+
+enum gui_text_edit_events {
+    ATRA_GUI_EDIT_ACTIVE        = BIT(0),
+    ATRA_GUI_EDIT_INACTIVE      = BIT(1),
+    ATRA_GUI_EDIT_ACTIVATED     = BIT(2),
+    ATRA_GUI_EDIT_DEACTIVATED   = BIT(3),
+    ATRA_GUI_EDIT_COMMITED      = BIT(4)
+};
+
+enum gui_popup_format {
+    ATRA_GUI_POPUP_STATIC,
+    ATRA_GUI_POPUP_DYNAMIC
+};
+
+enum gui_collapse_state {
+    ATRA_GUI_MINIMIZED,
+    ATRA_GUI_MAXIMIZED
+};
+
+enum gui_visibility {
+    ATRA_GUI_HIDE,
+    ATRA_GUI_SHOW
+};
+
+enum gui_tree_type {
+    ATRA_GUI_NODE,
+    ATRA_GUI_TAB
+};
+
+enum gui_button_behavior {
+    ATRA_GUI_BUTTON_DEFAULT,
+    ATRA_GUI_BUTTON_REPEATER
+};
+
+enum gui_header_align {
+    ATRA_GUI_HEADER_LEFT,
+    ATRA_GUI_HEADER_RIGHT
+};
+
+enum gui_chart_type {
+    ATRA_GUI_CHART_LINES,
+    ATRA_GUI_CHART_COLUMN,
+    ATRA_GUI_CHART_MAX,
+};
+
+enum gui_chart_event {
+    ATRA_GUI_CHART_HOVERING     = BIT(0),
+    ATRA_GUI_CHART_CLICKED      = BIT(1)
+};
+
+enum gui_panel_type {
+    ATRA_GUI_PANEL_NONE         = 0,
+    ATRA_GUI_PANEL_WINDOW       = BIT(0),
+    ATRA_GUI_PANEL_GROUP        = BIT(1),
+    ATRA_GUI_PANEL_POPUP        = BIT(2),
+    ATRA_GUI_PANEL_CONTEXTUAL   = BIT(3),
+    ATRA_GUI_PANEL_COMBO        = BIT(4),
+    ATRA_GUI_PANEL_MENU         = BIT(5),
+    ATRA_GUI_PANEL_TOOLTIP      = BIT(6)
+};
+
+enum gui_panel_row_layout_type {
+    ATRA_LAYOUT_DYNAMIC_FIXED,
+    ATRA_LAYOUT_DYNAMIC_ROW,
+    ATRA_LAYOUT_DYNAMIC_FREE,
+    ATRA_LAYOUT_DYNAMIC,
+    ATRA_LAYOUT_STATIC_FIXED,
+    ATRA_LAYOUT_STATIC_ROW,
+    ATRA_LAYOUT_STATIC_FREE,
+    ATRA_LAYOUT_STATIC,
+    ATRA_LAYOUT_TEMPLATE,
+    ATRA_LAYOUT_COUNT
+};
+
+enum gui_panel_composite {
+    ATRA_GUI_PANEL_COMP_NONBLOCK = ATRA_GUI_PANEL_CONTEXTUAL |
+                                   ATRA_GUI_PANEL_COMBO |
+                                   ATRA_GUI_PANEL_MENU |
+                                   ATRA_GUI_PANEL_TOOLTIP,
+    ATRA_GUI_PANEL_COMP_POPUP = ATRA_GUI_PANEL_COMP_NONBLOCK |
+                                ATRA_GUI_PANEL_POPUP,
+    ATRA_GUI_PANEL_COMP_SUB = ATRA_GUI_PANEL_COMP_POPUP |
+                              ATRA_GUI_PANEL_GROUP
+};
+
+enum gui_symbol_type {
+    ATRA_GUI_SYMBOL_NONE,
+    ATRA_GUI_SYMBOL_X,
+    ATRA_GUI_SYMBOL_UNDERSCORE,
+    ATRA_GUI_SYMBOL_CIRCLE_SOLID,
+    ATRA_GUI_SYMBOL_CIRCLE_OUTLINE,
+    ATRA_GUI_SYMBOL_RECT_SOLID,
+    ATRA_GUI_SYMBOL_RECT_OUTLINE,
+    ATRA_GUI_SYMBOL_TRIANGLE_UP,
+    ATRA_GUI_SYMBOL_TRIANGLE_DOWN,
+    ATRA_GUI_SYMBOL_TRIANGLE_LEFT,
+    ATRA_GUI_SYMBOL_TRIANGLE_RIGHT,
+    ATRA_GUI_SYMBOL_PLUS,
+    ATRA_GUI_SYMBOL_MINUS,
+    ATRA_GUI_SYMBOL_TOTAL
+};
+
+/* GUI key function types */
+enum gui_keys {
+    /* Basic functions */
+    ATRA_GUI_KEY_NONE,
+    ATRA_GUI_KEY_SHIFT,
+    ATRA_GUI_KEY_CTRL,
+    ATRA_GUI_KEY_DEL,
+    ATRA_GUI_KEY_ENTER,
+    ATRA_GUI_KEY_TAB,
+    ATRA_GUI_KEY_BACKSPACE,
+    ATRA_GUI_KEY_COPY,
+    ATRA_GUI_KEY_CUT,
+    ATRA_GUI_KEY_PASTE,
+    ATRA_GUI_KEY_UP,
+    ATRA_GUI_KEY_DOWN,
+    ATRA_GUI_KEY_LEFT,
+    ATRA_GUI_KEY_RIGHT,
+
+    /* Text field functions */
+    ATRA_GUI_KEY_TEXT_INSERT_MODE,
+    ATRA_GUI_KEY_TEXT_REPLACE_MODE,
+    ATRA_GUI_KEY_TEXT_RESET_MODE,
+    ATRA_GUI_KEY_TEXT_LINE_START,
+    ATRA_GUI_KEY_TEXT_LINE_END,
+    ATRA_GUI_KEY_TEXT_START,
+    ATRA_GUI_KEY_TEXT_END,
+    ATRA_GUI_KEY_TEXT_UNDO,
+    ATRA_GUI_KEY_TEXT_REDO,
+    ATRA_GUI_KEY_TEXT_SELECT_ALL,
+    ATRA_GUI_KEY_TEXT_WORD_LEFT,
+    ATRA_GUI_KEY_TEXT_WORD_RIGHT,
+
+    /* Scrollbar functions */
+    ATRA_GUI_KEY_SCROLL_START,
+    ATRA_GUI_KEY_SCROLL_END,
+    ATRA_GUI_KEY_SCROLL_DOWN,
+    ATRA_GUI_KEY_SCROLL_UP,
+    
+    ATRA_GUI_KEY_TOTAL
+};
+
+enum gui_window_flags {
+    ATRA_GUI_WINDOW_BORDER          = BIT(0),
+    ATRA_GUI_WINDOW_MOVABLE         = BIT(1),
+    ATRA_GUI_WINDOW_SCALABLE        = BIT(2),
+    ATRA_GUI_WINDOW_CLOSABLE        = BIT(3),
+    ATRA_GUI_WINDOW_MINIMISABLE     = BIT(4),
+    ATRA_GUI_WINDOW_NOSCROLL        = BIT(5),
+    ATRA_GUI_WINDOW_TITLE           = BIT(6),
+    ATRA_GUI_WINDOW_AUTOHIDESCROLL  = BIT(7),
+    ATRA_GUI_WINDOW_BACKGROUND      = BIT(8),
+    ATRA_GUI_WINDOW_NOINPUT         = BIT(9),
+    ATRA_GUI_WINDOW_DYNAMIC         = BIT(10),
+    ATRA_GUI_WINDOW_READONLY        = BIT(11),
+    ATRA_GUI_WINDOW_NOINTERACT      = BIT(12),
+    ATRA_GUI_WINDOW_HIDDEN          = BIT(13),
+    ATRA_GUI_WINDOW_CLOSED          = BIT(14),
+    ATRA_GUI_WINDOW_MINIMISED       = BIT(15),
+    ATRA_GUI_WINDOW_REMOVEREADONLY  = BIT(16),
+};
+
+typedef struct GUI_Subdiv {
+    Image image;
+    ushort l, t, r, b;
+} GUI_Subdiv;
+
+typedef struct GUI_Scroll {
+    uint x, y;
+} GUI_Scroll; 
+
+typedef union GUI_StyleItemData {
+    Color color;
+    Image image;
+    GUI_Subdiv subdiv;
+} GUI_StyleItemData;
+
+
+typedef struct GUI_Context GUI_Context;
+typedef struct GUI_Window GUI_Window;
+typedef struct GUI_PropertyState GUI_PropertyState;
+typedef struct GUI_EditState GUI_EditState;
+typedef struct GUI_PopupState GUI_PopupState;
+typedef struct GUI_Panel GUI_Panel;
+typedef struct GUI_Chart GUI_Chart;
+typedef struct GUI_ChartSlot GUI_ChartSlot;
+typedef struct GUI_MenuState GUI_MenuState;
+typedef struct GUI_PopupBuffer GUI_PopupBuffer;
+typedef struct GUI_RowLayout GUI_RowLayout;
+
+
+/*
+ *  Style Structures
+ */
+
+typedef struct GUI_ItemStyle {
+    int type;
+    GUI_StyleItemData data;
+} GUI_ItemStyle;
+
+typedef struct GUI_TextStyle {
+    Color color;
+    vec2 padding;
+} GUI_TextStyle;
+
+typedef struct GUI_ButtonStyle {
+    GUI_ItemStyle bg_normal;
+    GUI_ItemStyle bg_hover;
+    GUI_ItemStyle bg_active;
+    Color border_color;
+
+    Color text_bg;
+    Color text_normal;
+    Color text_hover;
+    Color text_active;
+
+    float border;
+    float rounding;
+    vec2 padding;
+    vec2 image_padding;
+    vec2 touch_padding;
+} GUI_ButtonStyle;
+
+typedef struct GUI_ToggleStyle {
+    GUI_ItemStyle bg_normal;
+    GUI_ItemStyle bg_hover;
+    GUI_ItemStyle bg_active;
+    Color border_color;
+
+    GUI_ItemStyle cursor_normal;
+    GUI_ItemStyle cursor_hover;
+
+    Color text_bg;
+    Color text_normal;
+    Color text_hover;
+    Color text_active;
+    int text_align_flags;
+
+    float border;
+    float spacing;
+    vec2 padding;
+    vec2 touch_padding;
+} GUI_ToggleStyle;
+
+typedef struct GUI_SelectableStyle {
+    GUI_ItemStyle bg_normal;
+    GUI_ItemStyle bg_hover;
+    GUI_ItemStyle bg_pressed;
+
+    GUI_ItemStyle bg_normal_active;
+    GUI_ItemStyle bg_hover_active;
+    GUI_ItemStyle bg_pressed_active;
+
+    Color text_normal;
+    Color text_hover;
+    Color text_pressed;
+    
+    Color text_normal_active;
+    Color text_hover_active;
+    Color text_pressed_active;
+
+    int text_align;
+    float rounding;
+    vec2 padding;
+    vec2 touch_padding;
+    vec2 image_padding;
+} GUI_SelectableStyle;
+
+typedef struct GUI_SliderStyle {
+    GUI_ItemStyle bg_normal;
+    GUI_ItemStyle bg_hover;
+    GUI_ItemStyle bg_active;
+    Color border_color;
+
+    Color bar_normal;
+    Color bar_hover;
+    Color bar_active;
+    Color bar_fill;
+
+    GUI_ItemStyle cursor_normal;
+    GUI_ItemStyle cursor_hover;
+    GUI_ItemStyle cursor_active;
+
+    float border;
+    float rounding;
+    float bar_height;
+    vec2 padding;
+    vec2 spacing;
+    vec2 cursor_size;
+
+    int show_buttons;
+    GUI_ButtonStyle inc_button;
+    GUI_ButtonStyle dec_button;
+    int inc_button_sym;
+    int dec_button_sym;
+} GUI_SliderStyle;
+
+typedef struct GUI_ProgressStyle {
+    GUI_ItemStyle bg_normal;
+    GUI_ItemStyle bg_hover;
+    GUI_ItemStyle bg_active;
+    Color border_color;
+
+    GUI_ItemStyle cursor_normal;
+    GUI_ItemStyle cursor_hover;
+    GUI_ItemStyle cursor_active;
+    Color cursor_border_color;
+
+    float rounding;
+    float border;
+    float cursor_border;
+    float cursor_rounding;
+    vec2 padding;
+} GUI_ProgressStyle;
+
+typedef struct GUI_ScrollStyle {
+    GUI_ItemStyle bg_normal;
+    GUI_ItemStyle bg_hover;
+    GUI_ItemStyle bg_active;
+    Color border_color;
+
+    GUI_ItemStyle cursor_normal;
+    GUI_ItemStyle cursor_hover;
+    GUI_ItemStyle cursor_active;
+    Color cursor_border_color;
+
+    float border;
+    float rounding;
+    float border_cursor;
+    float rounding_cursor;
+    vec2 padding;
+
+    int show_buttons;
+    GUI_ButtonStyle inc_button;
+    GUI_ButtonStyle dec_button;
+    int inc_button_sym;
+    int dec_button_sym;
+} GUI_ScrollStyle;
+
+typedef struct GUI_EditStyle {
+    GUI_ItemStyle bg_normal;
+    GUI_ItemStyle bg_hover;
+    GUI_ItemStyle bg_active;
+    GUI_ScrollStyle scrollbar;
+    Color border_color;
+
+    Color cursor_normal;
+    Color cursor_hover;
+    Color cursor_text_normal;
+    Color cursor_text_hover;
+
+    Color text_normal;
+    Color text_hover;
+    Color text_active;
+
+    Color selected_normal;
+    Color selected_hover;
+    Color selected_text_normal;
+    Color selected_text_hover;
+
+    float border;
+    float rounding;
+    float cursor_size;
+    vec2 scroll_size;
+    vec2 padding;
+    float row_padding;
+} GUI_EditStyle;
+
+typedef struct GUI_PropertyStyle {
+    GUI_ItemStyle bg_normal;
+    GUI_ItemStyle bg_hover;
+    GUI_ItemStyle bg_active;
+    Color border_color;
+
+    Color label_normal;
+    Color label_hover;
+    Color label_active;
+
+    int left_sym;
+    int right_sym;
+
+    float border;
+    float rounding;
+    vec2 padding;
+
+    GUI_EditStyle edit;
+    GUI_ButtonStyle inc_button;
+    GUI_ButtonStyle dec_button;
+} GUI_PropertyStyle;
+
+typedef struct GUI_ChartStyle {
+    GUI_ItemStyle background;
+    Color border_color;
+    Color selected_color;
+    Color color;
+
+    float border;
+    float rounding;
+    vec2 padding;
+} GUI_ChartStyle;
+
+typedef struct GUI_ComboStyle {
+    GUI_ItemStyle bg_normal;
+    GUI_ItemStyle bg_hover;
+    GUI_ItemStyle bg_active;
+    Color border_color;
+
+    Color label_normal;
+    Color label_hover;
+    Color label_active;
+
+    Color sym_color_normal;
+    Color sym_color_hover;
+    Color sym_color_active;
+
+    GUI_ButtonStyle button;
+    int sym_normal;
+    int sym_hover;
+    int sym_active;
+
+    float border;
+    float rounding;
+    vec2 content_padding;
+    vec2 button_padding;
+    vec2 spacing;
+} GUI_ComboStyle;
+
+typedef struct GUI_TabStyle {
+    GUI_ItemStyle background;
+    Color border_color;
+    Color text;
+
+    GUI_ButtonStyle tab_max_button;
+    GUI_ButtonStyle tab_min_button;
+    GUI_ButtonStyle node_max_button;
+    GUI_ButtonStyle node_min_button;
+    int sym_max;
+    int sym_min;
+
+    float border;
+    float rounding;
+    float indent;
+    vec2 padding;
+    vec2 spacing;
+} GUI_TabStyle;
+
+typedef struct GUI_WindowHeaderStyle {
+    GUI_ItemStyle bg_normal;
+    GUI_ItemStyle bg_hover;
+    GUI_ItemStyle bg_active;
+
+    GUI_ButtonStyle close_button;
+    GUI_ButtonStyle min_button;
+    int close_symbol;
+    int min_symbol;
+    int max_symbol;
+
+    Color label_normal;
+    Color label_hover;
+    Color label_active;
+
+    int align;
+    vec2 padding;
+    vec2 label_padding;
+    vec2 spacing;
+} GUI_WindowHeaderStyle;
+
+typedef struct GUI_WindowStyle {
+    GUI_WindowHeaderStyle header;
+    GUI_ItemStyle fixed_background;
+    Color background;
+
+    Color border_color;
+    Color popup_border_color;
+    Color combo_border_color;
+    Color contextual_border_color;
+    Color menu_border_color;
+    Color group_border_color;
+    Color tooltip_border_color;
+    GUI_ItemStyle scaler;
+
+    float border;
+    float combo_border;
+    float contextual_border;
+    float menu_border;
+    float group_border;
+    float tooltip_border;
+    float popup_border;
+    float min_row_height_padding;
+
+    float rounding;
+    vec2 spacing;
+    vec2 scrollbar_size;
+    vec2 min_size;
+
+    vec2 padding;
+    vec2 group_padding;
+    vec2 popup_padding;
+    vec2 combo_padding;
+    vec2 contextual_padding;
+    vec2 menu_padding;
+    vec2 tooltip_padding;
+} GUI_WindowStyle;
+
+typedef struct GUI_Style {
+    Font *font;
+    GUI_TextStyle text;
+    GUI_ButtonStyle button;
+    GUI_ButtonStyle contexual_button;
+    GUI_ButtonStyle menu_button;
+    GUI_ToggleStyle option;
+    GUI_ToggleStyle checkbox;
+    GUI_SelectableStyle selectable;
+    GUI_SliderStyle slider;
+    GUI_ProgressStyle progress;
+    GUI_PropertyStyle property;
+    GUI_EditStyle edit;
+    GUI_ChartStyle chart;
+    GUI_ScrollStyle scroll_h;
+    GUI_ScrollStyle scroll_v;
+    GUI_TabStyle tab;
+    GUI_ComboStyle combo;
+    GUI_WindowStyle window;
+} GUI_Style;
+
+/*
+ *  Interface Element Structures
+ */
+
+struct GUI_ChartSlot {
+    int type;
+    int index;
+    Color color;
+    Color highlight;
+    float min, max, range;
+    int count;
+    vec2 last;
+};
+
+struct GUI_Chart {
+    int slot;
+    float x, y, w, h;
+    GUI_ChartSlot slots[ATRA_GUI_MAX_CHART_SLOT];
+};
+
+struct GUI_RowLayout {
+    int type;
+    int index;
+    float height;
+    float min_height;
+    int columns;
+    const float *ratio;
+    float item_width;
+    float item_height;
+    float item_offset;
+    float filled;
+    Quad item;
+    int tree_depth;
+    float templates[ATRA_GUI_MAX_LAYOUT_ROW_TEMPLATE_COLUMNS];
+};
+
+struct GUI_PopupBuffer {
+    size_t begin;
+    size_t parent;
+    size_t last;
+    size_t end;
+    size_t active;
+};
+
+struct GUI_MenuState {
+    float x, y, w, h;
+    GUI_Scroll offset;
+};
+
+struct GUI_Panel {
+    int type;
+    i32 flags;
+    Quad bounds;
+    uint *offset_x;
+    uint *offset_y;
+    float at_x, at_y, max_x;
+    float footer_height;
+    float header_height;
+    float border;
+    uint has_scrolling;
+    Quad clip;
+    GUI_MenuState menu;
+    GUI_RowLayout row;
+    GUI_Chart chart;
+    struct GUI_Panel *parent;
+};
+
+struct GUI_PropertyState {
+   
+};
+
+struct GUI_EditState {
+
+};
+
+struct GUI_PopupState {
+
+};
+
+struct GUI_Window {
+    uint id;
+    uint hash;
+    char name[ATRA_GUI_WINDOW_MAX_NAME_LEN];
+    Quad area;
+    u32 flags;
+    
+    GUI_Scroll scrollbar;
+    float scroll_hide_timer;
+    int scrolled;
+
+    GUI_PropertyState prop_state;
+    GUI_EditState edit_state;
+    GUI_PopupState popup_state;
+
+    GUI_Window *next;
+    GUI_Window *prev;
+    GUI_Window *parent;
+};
+
+#endif /* ATRA_GUI_H */

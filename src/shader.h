@@ -12,24 +12,30 @@
 
 #include "common.h"
 
-#define ATRA_MAX_SHADER_ATTRIBS 32
+#define ATRA_MAX_SHADER_ATTRIBS         32
 
-#define ATRA_ATTRIB_NAME_POSITION   "vert_pos"
-#define ATRA_ATTRIB_NAME_TEXCOORD   "vert_uv"
-#define ATRA_ATTRIB_NAME_NORMAL     "vert_norm"
-#define ATRA_ATTRIB_NAME_COLOR      "vert_color"
-#define ATRA_ATTRIB_NAME_TANGENT    "vert_tangent"
-#define ATRA_ATTRIB_NAME_TEXCOORD2  "vert_uv2"
+#define ATRA_ATTRIB_NAME_POSITION       "vert_pos"
+#define ATRA_ATTRIB_NAME_TEXCOORD       "vert_uv"
+#define ATRA_ATTRIB_NAME_NORMAL         "vert_norm"
+#define ATRA_ATTRIB_NAME_COLOR          "vert_color"
+#define ATRA_ATTRIB_NAME_TANGENT        "vert_tangent"
+#define ATRA_ATTRIB_NAME_BITANGENT      "vert_bitangent"
+#define ATRA_ATTRIB_NAME_TEXCOORD2      "vert_uv2"
+#define ATRA_ATTRIB_NAME_BONEIDS        "vert_boneids"
+#define ATRA_ATTRIB_NAME_BONEWEIGHTS    "vert_boneweights"
+#define ATRA_ATTRIB_NAME_MODELS         "inst_models"
 
-#define ATRA_UNIFORM_NAME_MVP       "mvp"
-#define ATRA_UNIFORM_NAME_VIEWMAT   "viewmat"
-#define ATRA_UNIFORM_NAME_PROJMAT   "projmat"
-#define ATRA_UNIFORM_NAME_MODELMAT  "modelmat"
-#define ATRA_UNIFORM_NAME_NORMALMAT "normalmat"
-#define ATRA_UNIFORM_NAME_COLOR     "color"
-#define ATRA_UNIFORM_NAME_TEXTURE0  "albedo_map"
-#define ATRA_UNIFORM_NAME_TEXTURE1  "specular_map"
-#define ATRA_UNIFORM_NAME_TEXTURE2  "normal_map"
+#define ATRA_UNIFORM_NAME_BONEMATS      "bone_mats"
+
+#define ATRA_UNIFORM_NAME_MVP           "mvp"
+#define ATRA_UNIFORM_NAME_VIEWMAT       "viewmat"
+#define ATRA_UNIFORM_NAME_PROJMAT       "projmat"
+#define ATRA_UNIFORM_NAME_MODELMAT      "modelmat"
+#define ATRA_UNIFORM_NAME_NORMALMAT     "normalmat"
+#define ATRA_UNIFORM_NAME_COLOR         "color"
+#define ATRA_UNIFORM_NAME_TEXTURE0      "albedo_map"
+#define ATRA_UNIFORM_NAME_TEXTURE1      "specular_map"
+#define ATRA_UNIFORM_NAME_TEXTURE2      "normal_map"
 
 enum shader_locs {
     ATRA_SHADER_LOC_V_POSITION,
@@ -38,6 +44,10 @@ enum shader_locs {
     ATRA_SHADER_LOC_V_COLOR,
     ATRA_SHADER_LOC_V_TANGENT,
     ATRA_SHADER_LOC_V_TEXCOORD2,
+    ATRA_SHADER_LOC_V_BONEIDS,
+    ATRA_SHADER_LOC_V_BONEWEIGHTS,
+    ATRA_SHADER_LOC_V_INDEX,
+    ATRA_SHADER_LOC_M_BONES,
     ATRA_SHADER_LOC_M_MVP,
     ATRA_SHADER_LOC_M_VIEW,
     ATRA_SHADER_LOC_M_PROJ,
@@ -102,6 +112,14 @@ ATRA_API Shader atra_shader_loadfile(const char *vs_path, const char *fs_path);
 
 /* Compiles and loads a shader program from a text buffer */
 ATRA_API Shader atra_shader_loadbuffer(const char *vs_code, const char *fs_code);
+
+/* Compiles and loads a shader program from file, with specified `type` */
+ATRA_API Shader atra_shader_loadfile_locset(const char *vs_path, const char *fs_path,
+        const char **attrib_names, const uint *attrib_ids, uint attrib_count);
+
+/* Compiles and loads a shader program from a text buffer */
+ATRA_API Shader atra_shader_loadbuffer_locset(const char *vs_code, const char *fs_code,
+        const char **attrib_names, const uint *attrib_ids, uint attrib_count);
 
 /* Sets the given shader as the currently active program */
 ATRA_API void atra_shader_setactive(Shader *shader);

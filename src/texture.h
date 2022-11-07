@@ -13,6 +13,7 @@
 
 #include "common.h"
 #include "shader.h"
+#include "util.h"
 
 enum texture_sampling_style {
     ATRA_SAMPLE_NEAREST,
@@ -32,6 +33,14 @@ enum texture_type {
     ATRA_TEXTURE_PREFILTER,
     ATRA_TEXTURE_BRDF,
     ATRA_TEXTURE_TOTAL
+};
+
+enum gbuffer_type {
+    ATRA_GBUFFER_POSITION,
+    ATRA_GBUFFER_NORMAL,
+    ATRA_GBUFFER_ALBEDOSPEC,
+    ATRA_GBUFFER_DATA,
+    ATRA_GBUFFER_TOTAL
 };
 
 enum cubemap_face {
@@ -59,10 +68,17 @@ typedef struct Texture {
     int mip_sample;     /* Mipmap texture sample mode (default: nearest) */
 } Texture;
 
-/* Render texture (FBO) abstraction */
+/* Deferred rendering G-buffer abstraction */
+typedef struct GBuffer {
+    uint gbuffer;
+    uint buffers[ATRA_GBUFFER_TOTAL];
+    uint depth;
+} GBuffer;
+
+/* Render texture (RBO) abstraction */
 typedef struct RenderTexture {
     uint id;            /* FBO ID */
-    Texture color;      /* Color attachment texture */        
+    Texture color;      /* Color attachment texture */
     Texture depth;      /* Depth attachment texture */
 } RenderTexture;
 
@@ -76,13 +92,15 @@ typedef struct TextureArray {
     int mip_sample;     /* Mipmap texture sample mode (default: nearest) */
 } TextureArray;
 
+ATRA_OPTION_DECLARE(Image)
+ATRA_OPTION_DECLARE(Texture)
 
 /*
  *  Image Management Functions
  */
 
 /* Creates a new image from data in a file */
-ATRA_API Image atra_image_loadfile(const char *path);
+ATRA_API Option_Image atra_image_loadfile(const char *path);
 
 /* Frees memory occupied by image data */
 ATRA_API void atra_image_destroy(Image *image);
@@ -114,7 +132,7 @@ ATRA_API Image atra_image_gengradient_h(Color left, Color right, int w, int h);
 /* Creates an image with a radial gradient of two colors */
 ATRA_API Image atra_image_gengradient_radial(Color inner, Color outer, int w, int h);
 
-/* Generates a white noise image */
+/* Generates a white-noise image */
 ATRA_API Image atra_image_genwhitenoise(int w, int h, float factor);
 
 /* Generates a perlin noise image */
@@ -133,7 +151,7 @@ ATRA_API void atra_image_quadtouvs(const Image *image, IQuad quad, float *uvs);
 /* Creates a new OpenGL texture reserving space one the GPU with no data */
 
 /* Creates a new OpenGL texture from a file */
-ATRA_API Texture atra_texture_loadfile(const char *path);
+ATRA_API Option_Texture atra_texture_loadfile(const char *path);
 
 /* Creates a new OpenGL texture from an existing image */
 ATRA_API Texture atra_texture_loadimage(Image *image);
@@ -144,11 +162,11 @@ ATRA_API void atra_texture_bind(Texture *tex, int tex_unit);
 /* Binds the given cubemap texture to the chosen OpenGL texture unit */
 ATRA_API void atra_texture_bindcubemap(Texture *tex, int tex_unit);
 
-/* Loads the given texture for rendering (framebuffer) */
-ATRA_API RenderTexture atra_texture_loadrendertex(int width, int height);
-
 /* Removes a texture of the GPU and deletes it */
 ATRA_API void atra_texture_destroy(Texture *tex);
+
+/* Loads the given texture for rendering (framebuffer) */
+ATRA_API RenderTexture atra_texture_loadrendertex(int width, int height);
 
 /* Removes the render texture from the GPU and deletes it */
 ATRA_API void atra_texture_destroyrendertex(RenderTexture *tex);
@@ -187,5 +205,23 @@ ATRA_API void atra_texture_quadtouvs(const Texture *image, IQuad quad, float *uv
  */
 
 
+/*
+ *  G-Buffer Functions
+ */
+
+/* Create a new g-buffer */
+ATRA_API GBuffer atra_gbuffer_create(void);
+
+/* Deletes a g-buffer */
+ATRA_API void atra_gbuffer_delete(GBuffer *gbuffer);
+
+/* Binds the g-buffer */
+ATRA_API void atra_gbuffer_enable(GBuffer *gbuffer);
+
+/* Unbinds the g-buffer */
+ATRA_API void atra_gbuffer_disable(void);
+
+/* Blit depth buffer to default framebuffer's depth buffer */
+ATRA_API void atra_gbuffer_blitdepth(GBuffer *gbuffer);
 
 #endif /* ATRA_TEXTURE_H */

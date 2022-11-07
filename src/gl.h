@@ -29,7 +29,7 @@
 #endif
 
 #define ATRA_DEFAULT_BATCH_BUFFERS              1
-#define ATRA_DEFAULT_BATCH_BUFFER_ELEMS         8192
+#define ATRA_DEFAULT_BATCH_BUFFER_ELEMS         256
 #define ATRA_DEFAULT_BATCH_DRAWCALLS            256
 #define ATRA_DEFAULT_BATCH_MAX_TEXTURE_UNITS    4
 #define ATRA_MAX_MATRIX_STACK_SIZE              32
@@ -68,6 +68,8 @@
 
 /* GL data types */
 #define ATRA_UNSIGNED_BYTE                      0x1401      // GL_UNSIGNED_BYTE
+#define ATRA_INT                                0x1404      // GL_INT
+#define ATRA_UNSIGNED_INT                       0x1405      // GL_UNSIGNED_INT
 #define ATRA_FLOAT                              0x1406      // GL_FLOAT
 
 
@@ -703,6 +705,12 @@ ATRA_API void atra_gl_enablebackfaceculling(void);
 
 /* Disables culling of polygons which face away from the camera */
 ATRA_API void atra_gl_disablebackfaceculling(void);
+
+/* Enables culling of polygons which face the camera */
+ATRA_API void atra_gl_enablefrontfaceculling(void);
+
+/* Disables culling of polygons which face the camera */
+ATRA_API void atra_gl_disablefrontfaceculling(void);
 
 /* Enables scissor test to prevent drawing outside of a specific screen area */
 ATRA_API void atra_gl_enablescissortest(void);

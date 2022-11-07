@@ -9,6 +9,9 @@
 
 #include "atra.h"
 
+#define MAP_DELFLAG_WINDOW      0
+#define MAP_DELFLAG_ELEM        0
+
 /* All basic styles for each element style sub-category */
 struct GUIDefaultStyle {
     GUIBaseStyle base;                  /* Main body of the element */
@@ -268,16 +271,16 @@ atra_gui_init(void)
     const Color DARK_GREY = {0x30, 0x30, 0x30, 0xFF};
     const Color MID_GREY = {0x40, 0x40, 0x40, 0xFF};
     const Color LIGHT_GREY = {0x60, 0x60, 0x60, 0xFF};
-    const Color WHITE_GREY = {0x80, 0x80, 0x80, 0xFF};
+    //const Color WHITE_GREY = {0x80, 0x80, 0x80, 0xFF};
     const Color WHITE = {0xE0, 0xE0, 0xE0, 0xFF};
 
-    const Color BLUE = {0x20, 0x70, 0xA0};
-    const Color LIGHT_BLUE = {0x20, 0x90, 0xB0};
+    //const Color BLUE = {0x20, 0x70, 0xA0};
+    const Color LIGHT_BLUE = {0x20, 0x90, 0xB0, 0xFF};
 
     ivec2 NO_SPACE = {0, 0};
     ivec2 LOW_SPACE = {2, 2};
-    ivec2 MID_SPACE = {4, 4};
-    ivec2 BIG_SPACE = {8, 8};
+    //ivec2 MID_SPACE = {4, 4};
+    //ivec2 BIG_SPACE = {8, 8};
 
     /* Configure default text cursor sub-style */
     gui_default_elem_style.cursor.shape = ATRA_GUI_CURSOR_BAR;
@@ -321,11 +324,11 @@ atra_gui_init(void)
 
     
 
-    /* Configure default progress bar style (multi-element) */
+    /* TODO: Configure default progress bar style (multi-element) */
 
-    /* Configure default combo box style (multi-element) */
+    /* TODO: Configure default combo box style (multi-element) */
 
-    /* Configure default menu style (multi-element) */
+    /* TODO: Configure default menu style (multi-element) */
 
 
     text_cursor.threshold = 500;
@@ -655,10 +658,20 @@ ATRA_API
 void
 atra_gui_stop(void)
 {
+    const uint list_size = atra_list_length(&gui.window_stack);
+
+    GUIWindow *window;
+    uint i;
+
+    for (i = 0; i < list_size; i++) {
+        window = *(GUIWindow **) atra_list_get(&gui.window_stack, i);
+        atra_gui_window_delete(window);
+    }
+    atra_shader_destroy(&gui.material.shader);
     atra_font_delete(&gui.font);
     atra_list_delete(&gui.window_stack);
-    atra_hashmap_delete(&gui.window_map);
-    atra_hashmap_delete(&gui.elem_map);
+    atra_hashmap_delete(&gui.window_map, MAP_DELFLAG_WINDOW);
+    atra_hashmap_delete(&gui.elem_map, MAP_DELFLAG_ELEM);
 }
 
 /* Handles any text-related keyboard events for a GUI element */
@@ -919,6 +932,8 @@ atra_gui_render(void)
     size_t i;
     GUIWindow *window;
 
+    atra_gl_disabledepthtest();
+
     /* Mesh any windows which require meshing */
     for (i = 0; i < stack_size; i++) {
         window = *(GUIWindow **) atra_list_get(&gui.window_stack, i);
@@ -937,6 +952,7 @@ atra_gui_render(void)
         }
     }
     atra_gl_disablescissortest();
+    atra_gl_enabledepthtest();
 }
 
 /* Signals a remesh on all windows and elements */
@@ -989,7 +1005,8 @@ GUIWindow *
 atra_gui_window_create(u32 attrib, u32 state, const char *id_str)
 {
     GUIWindow *window = calloc(1, sizeof(GUIWindow));
-
+    char *str = window->id_str;
+    
     strncpy(window->id_str, id_str, ATRA_GUI_MAX_ID_LEN);
     window->attrs = attrib;
     window->states = state;
@@ -1000,7 +1017,7 @@ atra_gui_window_create(u32 attrib, u32 state, const char *id_str)
     window->scissors = atra_list_create(sizeof(IQuad));
 
     atra_list_add(&gui.window_stack, &window);
-    atra_hashmap_add(&gui.window_map, &id_str, &window);
+    atra_hashmap_add(&gui.window_map, &str, &window);
 
     return window;
 }
@@ -1012,10 +1029,11 @@ atra_gui_window_delete(GUIWindow *window)
 {
     const int list_size = atra_list_length(&gui.window_stack);
     const int mesh_count = atra_list_length(&window->meshes);
+    char * const str = window->id_str;
 
     GUIWindow *list_win;
     int found = 0;
-    int i;
+    int i, j;
 
     for (i = 0; i < list_size; i++) {
         list_win = *(GUIWindow **) atra_list_get(&gui.window_stack, i);
@@ -1031,16 +1049,19 @@ atra_gui_window_delete(GUIWindow *window)
         return;
     }
 
-    for (i = 0; i < mesh_count; i++) {
-        atra_mesh_delete(atra_list_get(&window->meshes, i));
+    if (window->elem != NULL) {
+        atra_gui_elem_delete(window->elem);
+    }
+
+    for (j = 0; j < mesh_count; j++) {
+        atra_mesh_delete(atra_list_get(&window->meshes, j));
     }
     atra_list_delete(&window->meshes);
     atra_list_delete(&window->materials);
     atra_list_delete(&window->transforms);
     atra_list_delete(&window->scissors);
 
-    atra_hashmap_remove(&gui.window_map, &window->id_str);
-
+    atra_hashmap_remove(&gui.window_map, &str, MAP_DELFLAG_WINDOW);
     atra_list_remove_f(&gui.window_stack, i);
 }
 
@@ -1511,17 +1532,17 @@ atra_gui_window_mesh(GUIWindow *window)
         while (elem != NULL) {
             if (BIT_CHK(elem->attrs, ATRA_GUI_ELEM_SCISSORTEST | ATRA_GUI_ELEM_SCROLLABLE)) {
                 const int border_size = elem->style.base->border.size;
-                const int x0 = elem->real_quad.x * screen_width + border_size;
-                const int y0 = elem->real_quad.y * screen_height + border_size;
-                const int x1 = x0 + elem->real_quad.w * screen_width - border_size * 2;
-                const int y1 = y0 + elem->real_quad.h * screen_height - border_size * 2;
+                const int q_x0 = elem->real_quad.x * screen_width + border_size;
+                const int q_y0 = elem->real_quad.y * screen_height + border_size;
+                const int q_x1 = q_x0 + elem->real_quad.w * screen_width - border_size * 2;
+                const int q_y1 = q_y0 + elem->real_quad.h * screen_height - border_size * 2;
 
                 if (s_x1 == 0 || s_y1 == 0) {
-                    s_x0 = x0; s_x1 = x1;
-                    s_y0 = y0; s_y1 = y1;
+                    s_x0 = q_x0; s_x1 = q_x1;
+                    s_y0 = q_y0; s_y1 = q_y1;
                 } else {
-                    s_x0 = MAX(s_x0, x0); s_x1 = MIN(s_x1, x1);
-                    s_y0 = MAX(s_y0, y0); s_y1 = MIN(s_y1, y1);
+                    s_x0 = MAX(s_x0, q_x0); s_x1 = MIN(s_x1, q_x1);
+                    s_y0 = MAX(s_y0, q_y0); s_y1 = MIN(s_y1, q_y1);
                 }
             }
             elem = elem->parent;
@@ -1591,6 +1612,9 @@ atra_gui_window_mesh(GUIWindow *window)
                 break;
             case ATRA_GUI_ELEM_DISABLED:
                 style = &elem->style.base->disabled;
+                break;
+            default:
+                style = &elem->style.base->normal;
                 break;
             }
             atra_mesh_setactive(mesh);
@@ -1670,21 +1694,21 @@ atra_gui_window_mesh(GUIWindow *window)
                 Font *font = elem->style.text->font;
                 
                 if (BIT_CHK(elem->attrs, ATRA_GUI_ELEM_SCISSORTEST | ATRA_GUI_ELEM_SCROLLABLE)) {
-                    const int x0 = elem->real_quad.x * screen_width + border_size;
-                    const int y0 = elem->real_quad.y * screen_height + border_size;
-                    const int x1 = x0 + elem->real_quad.w * screen_width - border_size * 2;
-                    const int y1 = y0 + elem->real_quad.h * screen_height - border_size * 2;
+                    const int r_x0 = elem->real_quad.x * screen_width + border_size;
+                    const int r_y0 = elem->real_quad.y * screen_height + border_size;
+                    const int r_x1 = r_x0 + elem->real_quad.w * screen_width - border_size * 2;
+                    const int r_y1 = r_y0 + elem->real_quad.h * screen_height - border_size * 2;
                     
                     if (s_x1 == 0 || s_y1 == 0) {
-                        s_x0 = x0;
-                        s_x1 = x1;
-                        s_y0 = y0;
-                        s_y1 = y1;
+                        s_x0 = r_x0;
+                        s_x1 = r_x1;
+                        s_y0 = r_y0;
+                        s_y1 = r_y1;
                     } else {
-                        s_x0 = MAX(s_x0, x0);
-                        s_x1 = MIN(s_x1, x1);
-                        s_y0 = MAX(s_y0, y0);
-                        s_y1 = MIN(s_y1, y1);
+                        s_x0 = MAX(s_x0, r_x0);
+                        s_x1 = MIN(s_x1, r_x1);
+                        s_y0 = MAX(s_y0, r_y0);
+                        s_y1 = MIN(s_y1, r_y1);
                     }
 
                     /* TODO: Maybe remove zeroing, since this branch might never
@@ -1878,6 +1902,7 @@ GUIElem *
 atra_gui_elem_create(const char *id, u32 attrib, GUIQuad area)
 {
     GUIElem *elem = calloc(1, sizeof(GUIElem));
+    char *str = elem->id_str;
 
     strncpy(elem->id_str, id, ATRA_GUI_MAX_ID_LEN);
     elem->attrs = attrib;
@@ -1891,7 +1916,7 @@ atra_gui_elem_create(const char *id, u32 attrib, GUIQuad area)
         elem->rows = atra_list_create(sizeof(GUILineText));
     }
 
-    atra_hashmap_add(&gui.elem_map, &elem->id_str, &elem);
+    atra_hashmap_add(&gui.elem_map, &str, &elem);
     glm_mat4_identity(elem->transform);
     atra_gui_elem_flagremesh(elem);
 
@@ -1906,13 +1931,16 @@ atra_gui_elem_delete(GUIElem *elem)
     const size_t list_size = atra_list_length(&elem->children);
     size_t i;
     GUIElem *child;
+    char *id_str;
 
     for (i = 0; i < list_size; i++) {
         child = *(GUIElem **) atra_list_get(&elem->children, i);
         atra_gui_elem_delete(child);
     }
+    id_str = elem->id_str;
+
     atra_list_delete(&elem->children);
-    atra_hashmap_remove(&gui.elem_map, &elem->id_str);
+    atra_hashmap_remove(&gui.elem_map, &id_str, MAP_DELFLAG_ELEM);
 
     if (BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HASTEXT)) {
         atra_list_delete(&elem->rows);
@@ -2417,17 +2445,19 @@ atra_gui_elem_setstyle(GUIElem *elem, int type, void *style)
 {
     switch (type) {
     case ATRA_GUI_STYLE_BASE:
-        elem->style.base = style;
+        elem->style.base = style; break;
     case ATRA_GUI_STYLE_TEXT:
-        elem->style.text = style;
+        elem->style.text = style; break;
     case ATRA_GUI_STYLE_TEXTEDIT:
-        elem->style.edit = style;
+        elem->style.edit = style; break;
     case ATRA_GUI_STYLE_TEXTSELECTION:
-        elem->style.selection = style;
+        elem->style.selection = style; break;
     case ATRA_GUI_STYLE_TEXTCURSOR:
-        elem->style.cursor = style;
+        elem->style.cursor = style; break;
     case ATRA_GUI_STYLE_SCROLLBAR:
-        elem->style.scrollbar = style;
+        elem->style.scrollbar = style; break;
+    default:
+        break;
     }
     atra_gui_elem_flagremesh(elem);
 }
@@ -2646,7 +2676,9 @@ atra_gui_elem_calcquad_auto(GUIElem *elem)
         for (j = i; j < child_count; j++) {
             child = *(GUIElem **) atra_list_get(&elem->children, j);
 
-            if (prev != NULL && child->quad.y != prev->quad.y) {
+            if (prev != NULL &&
+                    (child->quad.y < prev->quad.y) &&
+                    (child->quad.y > prev->quad.y)) {
                 break;
             }
         }
@@ -3140,6 +3172,7 @@ GUIElem *
 atra_gui_elem_create_panel(const char *id, int attrib, GUIQuad quad)
 {
     GUIElem *elem = calloc(1, sizeof(GUIElem));
+    char *str = elem->id_str;
 
     strncpy(elem->id_str, id, ATRA_GUI_MAX_ID_LEN);
     elem->attrs = attrib;
@@ -3153,7 +3186,7 @@ atra_gui_elem_create_panel(const char *id, int attrib, GUIQuad quad)
         elem->rows = atra_list_create(sizeof(GUILineText));
     }
 
-    atra_hashmap_add(&gui.elem_map, &elem->id_str, &elem);
+    atra_hashmap_add(&gui.elem_map, &str, &elem);
     glm_mat4_identity(elem->transform);
     atra_gui_elem_flagremesh(elem);
 
@@ -3165,6 +3198,7 @@ GUIElem *
 atra_gui_elem_create_label(const char *id, int attrib, GUIQuad quad)
 {
     GUIElem *elem = calloc(1, sizeof(GUIElem));
+    char *str = elem->id_str;
 
     strncpy(elem->id_str, id, ATRA_GUI_MAX_ID_LEN);
     elem->attrs = attrib | ATRA_GUI_ELEM_HASTEXT;
@@ -3178,7 +3212,7 @@ atra_gui_elem_create_label(const char *id, int attrib, GUIQuad quad)
         elem->rows = atra_list_create(sizeof(GUILineText));
     }
 
-    atra_hashmap_add(&gui.elem_map, &elem->id_str, &elem);
+    atra_hashmap_add(&gui.elem_map, &str, &elem);
     glm_mat4_identity(elem->transform);
     atra_gui_elem_flagremesh(elem);
 
@@ -3190,6 +3224,7 @@ GUIElem *
 atra_gui_elem_create_button(const char *id, int attrib, GUIQuad quad)
 {
     GUIElem *elem = calloc(1, sizeof(GUIElem));
+    char *str = elem->id_str;
 
     strncpy(elem->id_str, id, ATRA_GUI_MAX_ID_LEN);
     elem->attrs = attrib | ATRA_GUI_ELEM_CLICKABLE;
@@ -3203,7 +3238,7 @@ atra_gui_elem_create_button(const char *id, int attrib, GUIQuad quad)
         elem->rows = atra_list_create(sizeof(GUILineText));
     }
 
-    atra_hashmap_add(&gui.elem_map, &elem->id_str, &elem);
+    atra_hashmap_add(&gui.elem_map, &str, &elem);
     glm_mat4_identity(elem->transform);
     atra_gui_elem_flagremesh(elem);
 
@@ -3215,6 +3250,7 @@ GUIElem *
 atra_gui_elem_create_toggle(const char *id, int attrib, GUIQuad quad)
 {
     GUIElem *elem = calloc(1, sizeof(GUIElem));
+    char *str = elem->id_str;
 
     strncpy(elem->id_str, id, ATRA_GUI_MAX_ID_LEN);
     elem->attrs = attrib | ATRA_GUI_ELEM_CLICKABLE | ATRA_GUI_ELEM_TOGGLING;
@@ -3228,7 +3264,7 @@ atra_gui_elem_create_toggle(const char *id, int attrib, GUIQuad quad)
         elem->rows = atra_list_create(sizeof(GUILineText));
     }
 
-    atra_hashmap_add(&gui.elem_map, &elem->id_str, &elem);
+    atra_hashmap_add(&gui.elem_map, &str, &elem);
     glm_mat4_identity(elem->transform);
     atra_gui_elem_flagremesh(elem);
 
@@ -3251,6 +3287,12 @@ atra_gui_elem_create_slider(const char *id, int attrib, GUIQuad quad)
               to some numerical value.
             - Scrolling on the parent should also adjust scrollbar
     */
+
+    ATRA_UNUSED(id);
+    ATRA_UNUSED(attrib);
+    ATRA_UNUSED(quad);
+
+    return NULL;
 }
 
 ATRA_API
@@ -3263,6 +3305,7 @@ atra_gui_elem_create_progressbar(const char *id, int attrib, GUIQuad quad)
     GUIElem *base = calloc(1, sizeof(GUIElem));
     GUIElem *bar = calloc(1, sizeof(GUIElem));
     GUIElem *label = calloc(1, sizeof(GUIElem));
+    char *str = base->id_str;
 
     strncpy(base->id_str, id, ATRA_GUI_MAX_ID_LEN);
     base->attrs = attrib;
@@ -3275,7 +3318,7 @@ atra_gui_elem_create_progressbar(const char *id, int attrib, GUIQuad quad)
     if (BIT_CHK(base->attrs, ATRA_GUI_ELEM_HASTEXT)) {
         base->rows = atra_list_create(sizeof(GUILineText));
     }
-    atra_hashmap_add(&gui.elem_map, &base->id_str, &base);
+    atra_hashmap_add(&gui.elem_map, &str, &base);
     glm_mat4_identity(base->transform);
     atra_gui_elem_flagremesh(base);
 
@@ -3305,6 +3348,11 @@ atra_gui_elem_create_scrollbar(const char *id, int attrib, GUIQuad quad)
               displacement of the parent element's scroll value.
             - Scrolling on the parent should also adjust scrollbar 
     */
+    ATRA_UNUSED(id);
+    ATRA_UNUSED(attrib);
+    ATRA_UNUSED(quad);
+
+    return NULL;
 }
 
 ATRA_API
@@ -3312,6 +3360,7 @@ GUIElem *
 atra_gui_elem_create_textbox(const char *id, int attrib, GUIQuad quad)
 {
     GUIElem *elem = calloc(1, sizeof(GUIElem));
+    char *str = elem->id_str;
 
     strncpy(elem->id_str, id, ATRA_GUI_MAX_ID_LEN);
     elem->attrs = attrib | ATRA_GUI_ELEM_HASTEXT | ATRA_GUI_ELEM_TEXTINPUT |
@@ -3326,7 +3375,7 @@ atra_gui_elem_create_textbox(const char *id, int attrib, GUIQuad quad)
         elem->rows = atra_list_create(sizeof(GUILineText));
     }
 
-    atra_hashmap_add(&gui.elem_map, &elem->id_str, &elem);
+    atra_hashmap_add(&gui.elem_map, &str, &elem);
     glm_mat4_identity(elem->transform);
     atra_gui_elem_flagremesh(elem);
 
@@ -3338,6 +3387,7 @@ GUIElem *
 atra_gui_elem_create_textfield(const char *id, int attrib, GUIQuad quad)
 {
     GUIElem *elem = calloc(1, sizeof(GUIElem));
+    char *str = elem->id_str;
 
     strncpy(elem->id_str, id, ATRA_GUI_MAX_ID_LEN);
     elem->attrs = attrib | ATRA_GUI_ELEM_HASTEXT | ATRA_GUI_ELEM_TEXTINPUT |
@@ -3352,7 +3402,7 @@ atra_gui_elem_create_textfield(const char *id, int attrib, GUIQuad quad)
         elem->rows = atra_list_create(sizeof(GUILineText));
     }
 
-    atra_hashmap_add(&gui.elem_map, &elem->id_str, &elem);
+    atra_hashmap_add(&gui.elem_map, &str, &elem);
     glm_mat4_identity(elem->transform);
     atra_gui_elem_flagremesh(elem);
 
@@ -3375,6 +3425,11 @@ atra_gui_elem_create_combobox(const char *id, int attrib, GUIQuad quad)
          - Clicking either element opens a drop-down menu of selections to make (buttons)
     */
 
+    ATRA_UNUSED(id);
+    ATRA_UNUSED(attrib);
+    ATRA_UNUSED(quad);
+
+    return NULL;
 
 }
 
@@ -3386,6 +3441,11 @@ atra_gui_elem_create_menu(const char *id, int attrib, GUIQuad quad)
         A drop down menu containing a list of buttons.
         Will require auxiliary functions for adding/removing menu items.
     */
+    ATRA_UNUSED(id);
+    ATRA_UNUSED(attrib);
+    ATRA_UNUSED(quad);
+
+    return NULL;
 }
 
 ATRA_API
@@ -3393,6 +3453,7 @@ GUIElem *
 atra_gui_elem_create_tooltip(const char *id, int attrib, GUIQuad quad)
 {
     GUIElem *elem = calloc(1, sizeof(GUIElem));
+    char *str = elem->id_str;
 
     strncpy(elem->id_str, id, ATRA_GUI_MAX_ID_LEN);
     elem->attrs = attrib | ATRA_GUI_ELEM_FALLTHROUGH;
@@ -3406,7 +3467,7 @@ atra_gui_elem_create_tooltip(const char *id, int attrib, GUIQuad quad)
         elem->rows = atra_list_create(sizeof(GUILineText));
     }
 
-    atra_hashmap_add(&gui.elem_map, &elem->id_str, &elem);
+    atra_hashmap_add(&gui.elem_map, &str, &elem);
     glm_mat4_identity(elem->transform);
     atra_gui_elem_flagremesh(elem);
 
@@ -3509,10 +3570,14 @@ atra_gui_elem_calcratio(GUIElem *elem)
 
     if (elem->quad.types[2] == ATRA_GUI_CONS_PERCENT) {
         width = elem->quad.w * atra_window_getwidth();
+    } else {
+        width = elem->quad.w;
     }
     
     if (elem->quad.types[3] == ATRA_GUI_CONS_PERCENT) {
         height = elem->quad.h * atra_window_getheight();
+    } else {
+        height = elem->quad.h;
     }
 
     if (BIT_CHK(elem->attrs, ATRA_GUI_ELEM_KEEPRATIO_H)) {

@@ -19,7 +19,11 @@
 
 #include "glad.h"
 
+#include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <math.h>
+
 #include <cglm/cglm.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -79,6 +83,7 @@
 
 #define MIN(a, b) DECIDE((a) < (b), (a), (b))
 #define MAX(a, b) DECIDE((a) > (b), (a), (b))
+#define CLAMP(n, min, max) MAX(min, MIN(max, n))
 
 #define DEG_TO_RAD(x) ((x) * (PI / 180))
 #define RAD_TO_DEG(x) (((x) / PI) * 180)
@@ -103,6 +108,11 @@ typedef unsigned char   uchar;
 typedef unsigned short  ushort;
 typedef unsigned int    uint;
 typedef unsigned long   ulong;
+
+typedef size_t      usize;
+typedef uintptr_t   uptr;
+typedef ptrdiff_t   iptr;
+typedef void *      vptr;
 
 typedef int ivec2[2];
 

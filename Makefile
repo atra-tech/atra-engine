@@ -16,17 +16,22 @@ TESTS=$(wildcard $(TEST)/*.c)
 TESTBINS=$(patsubst $(TEST)/%.c, $(TEST)/bin/%, $(TESTS))
 TESTASMS=$(patsubst $(TEST)/bin/%, $(TEST)/asm/%.s, $(TESTBINS))
 
+TARGET_PATH=$(BUILD_DIR)/$(TARGET)
+
 LIBDIR=lib
-LIB=$(LIBDIR)/atra.a
+LIB=$(LIBDIR)/libatra.a
 
 INC_DIRS=$(shell find $(SRC) -type d)
 INC_FLAGS=$(addprefix -I,$(INC_DIRS))
 
-LDFLAGS=-lm -ldl -lSDL2 -lSDL2_image -lGL -lopenal
-CFLAGS=$(INC_FLAGS) -MP -MMD -O0 -Wall -Wextra -Wpedantic -g -std=c99
+WARNFLAGS=-Wall -Wno-missing-braces -Wextra -Wno-missing-field-initializers -Wformat=2 \
+		-Wpointer-arith -Wundef -Wnested-externs -Wshadow -Wunreachable-code \
+		-Wlogical-op -Wstrict-aliasing=2 -Wredundant-decls
+LDFLAGS=-lm -ldl -lSDL2 -lSDL2_image -lSDL2_net -lGL -lopenal
+CFLAGS=$(INC_FLAGS) -MP -MMD -Og $(WARNFLAGS) -g -std=c99
 
-$(BUILD_DIR)/$(TARGET): $(LIB) $(BUILD_DIR) $(EXEC_SRCS)
-	$(CC) $(CFLAGS) $(SRCS) $(EXEC_SRCS) -o $@ $(LDFLAGS)
+$(TARGET_PATH): $(LIB) $(BUILD_DIR) $(EXEC_SRCS) $(TARGET_PATH_WIN)
+	$(CC) $(CFLAGS) $(OBJS) $(EXEC_SRCS) $(LIB_FLAGS) -o $@ $(LDFLAGS)
 
 .PHONY: all release test clean
 
@@ -74,4 +79,4 @@ test: clean $(LIB) $(TEST)/bin $(TEST)/asm $(TESTBINS) $(TESTASMS)
 	for test in $(TESTBINS) ; do ./$$test ; done
 
 clean:
-	$(RM) -r $(LIB) $(OBJ) $(BUILD_DIR) $(TEST)/bin $(TEST)/asm
+	$(RM) -r $(LIB) $(OBJ) $(TARGET_PATH) $(TEST)/bin $(TEST)/asm

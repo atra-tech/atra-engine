@@ -14,8 +14,8 @@
 
 #define ATRA_CAMERA_DEFAULT_FOV     PI / 2.0f;
 #define ATRA_CAMERA_DEFAULT_ZOOM    2.0f
-#define ATRA_CAMERA_NEAR_PLANE      0.01f
-#define ATRA_CAMERA_FAR_PLANE       1000.0f
+#define ATRA_CAMERA_NEAR_PLANE      0.1f
+#define ATRA_CAMERA_FAR_PLANE       100.0f
 
 #include "common.h"
 

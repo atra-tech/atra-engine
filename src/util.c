@@ -8,6 +8,7 @@
  *  */
 
 #include "atra.h"
+#include "whereami.h"
 
 #include <string.h>
 #include <sys/stat.h>
@@ -16,6 +17,8 @@
 
 #ifdef _WIN32
     #include <windows.h>
+    #include <shlobj.h>
+    #include <dirent.h>
     #include <direct.h>
     #include <io.h>
 #else
@@ -23,6 +26,13 @@
     #include <dirent.h>
     #include <unistd.h>
 #endif
+
+#define SINFL_NOSIMD
+#include "stb/sinfl.h"
+
+#include "stb/sdefl.h"
+
+#define MAX_DECOMPRESSION_SIZE      64
 
 #ifndef MAX_TEXT_BUFFER_LEN
     #define MAX_TEXT_BUFFER_LEN     4096
@@ -45,9 +55,29 @@ extern "C" {
 
 static int rand_init = 0;
 
-static char app_root_path[PATH_MAX];
-static char exec_path[PATH_MAX];
-static char appdata_path[PATH_MAX];
+ATRA_OPTION_DEFINE(char)
+ATRA_OPTION_DEFINE(uchar)
+ATRA_OPTION_DEFINE(short)
+ATRA_OPTION_DEFINE(ushort)
+ATRA_OPTION_DEFINE(int)
+ATRA_OPTION_DEFINE(uint)
+ATRA_OPTION_DEFINE(long)
+ATRA_OPTION_DEFINE(ulong)
+
+ATRA_OPTION_DEFINE(i8)
+ATRA_OPTION_DEFINE(u8)
+ATRA_OPTION_DEFINE(i16)
+ATRA_OPTION_DEFINE(u16)
+ATRA_OPTION_DEFINE(i32)
+ATRA_OPTION_DEFINE(u32)
+ATRA_OPTION_DEFINE(i64)
+ATRA_OPTION_DEFINE(u64)
+ATRA_OPTION_DEFINE(usize)
+
+ATRA_OPTION_DEFINE(float)
+ATRA_OPTION_DEFINE(double)
+ATRA_OPTION_DEFINE(f32)
+ATRA_OPTION_DEFINE(f64)
 
 
 /* Loads a file into memory as an array of bytes */
@@ -65,7 +95,7 @@ atra_util_loadfile(const char *path, size_t *size)
         return NULL;
     }
     fseek(file, 0, SEEK_END);
-    length = ftell(file);
+    length = (ulong) ftell(file);
     fseek(file, 0, SEEK_SET);
     data = malloc((length + 1) * sizeof(char));
     fread(data, sizeof(char), length, file);
@@ -130,7 +160,7 @@ atra_util_fileexists(const char *path)
     result = (access(path, F_OK) != -1);
 #endif
 
-    return 0;
+    return result;
 }
 
 /* Returns 1 if the directory at the given path exists, otherwise 0 */
@@ -185,7 +215,7 @@ atra_util_filehasext(const char *path, const char *ext)
         atra_list_delete(&check_exts);
     }
 
-    return result;
+    return (int)result;
 }
 
 /* Returns a pointer to the extension of a given file name (includes dot '.') */
@@ -208,7 +238,7 @@ strprbrk(const char *s, const char *charset)
 {
     const char *latest = NULL;
     
-    for (; s = strpbrk(s, charset), s != NULL; latest = s++) {}
+    for (; (void)(s = strpbrk(s, charset)), s != NULL; latest = s++) {}
 
     return latest;
 }
@@ -239,16 +269,17 @@ atra_util_getfilenamenoext(const char *path)
 {
     #define MAX_FILENAME_NOEXT_LEN 1024
 
-    static char filename[MAX_FILENAME_NOEXT_LEN] = {0};
+    static char filename[MAX_FILENAME_NOEXT_LEN];
+    size_t size, i;
+
     memset(filename, 0, MAX_FILENAME_NOEXT_LEN);
 
     if (path != NULL) {
         strcpy(filename, atra_util_getfilename(path));
     }
+    size = strlen(filename);
 
-    int size = strlen(filename);
-
-    for (int i = 0; i < size && i < MAX_FILENAME_NOEXT_LEN; i++) {
+    for (i = 0; i < size && i < MAX_FILENAME_NOEXT_LEN; i++) {
         if (filename[i] == '.') {
             filename[i] = '\0';
             break;
@@ -295,7 +326,7 @@ const char *
 atra_util_getprevdirpath(const char *path)
 {
     static char prevdirpath[MAX_FILEPATH_LENGTH] = {0};
-    int path_len = strlen(path);
+    int path_len = (int) strlen(path);
     int i;
     
     memset(prevdirpath, 0, MAX_FILEPATH_LENGTH);
@@ -309,7 +340,7 @@ atra_util_getprevdirpath(const char *path)
             if ((i == 2 && path[1] == ':') || i == 0) {
                 i++;
             }
-            strncpy(prevdirpath, path, i);
+            strncpy(prevdirpath, path, (ulong) i);
             break;
         }
     }
@@ -323,7 +354,7 @@ ATRA_API
 const char *
 atra_util_getworkingdir(void)
 {
-    static char curr_dir[MAX_FILEPATH_LENGTH] = {0};
+    static char curr_dir[MAX_FILEPATH_LENGTH];
     char *path;
 
     memset(curr_dir, 0, MAX_FILEPATH_LENGTH);
@@ -359,7 +390,7 @@ ATRA_API
 List
 atra_util_listdir(const char *path, char *ext)
 {
-    List result;
+    List result = {0};
     char *entry;
     
 #ifdef _WIN32
@@ -367,7 +398,11 @@ atra_util_listdir(const char *path, char *ext)
     HANDLE find = NULL;
     char fname[2048];
 
-    sprintf(fname, "%s\\*.%s", path, ext);
+    if (ext != NULL) {
+        sprintf(fname, "%s\\*.%s", path, ext);
+    } else {
+        sprintf(fname, "%s\\*.*", path);
+    }
 
     if ((find = FindFirstFile(fname, &fd_file)) == INVALID_HANDLE_VALUE) {
         atra_log_print(LOG_ERROR, "util: Directory not found: \"%s\"", path);
@@ -380,7 +415,7 @@ atra_util_listdir(const char *path, char *ext)
                 strcmp(fd_file.cFileName, "..")) {
             entry = malloc((strlen(fd_file.cFileName) + 1) * sizeof(char));
             strcpy(entry, fd_file.cFileName);
-            atra_list_add(&result, entry);
+            atra_list_add(&result, &entry);
         }
     } while (FindNextFile(find, &fd_file));
 
@@ -396,12 +431,23 @@ atra_util_listdir(const char *path, char *ext)
     result = atra_list_create(sizeof(char *));
 
     while ((files = readdir(dir))) {
-        entry = strrchr(files->d_name, '.');
+        if (strcmp(files->d_name, ".") == 0 ||
+                strcmp(files->d_name, "..") == 0) {
+            continue;
+        }
+
+        if (ext != NULL) {
+            entry = strrchr(files->d_name, '.');
         
-        if (entry && !strcmp(++entry, ext)) {
+            if (entry && !strcmp(++entry, ext)) {
+                entry = malloc((strlen(files->d_name) + 1) * sizeof(char));
+                strcpy(entry, files->d_name);
+                atra_list_add(&result, &entry);
+            }
+        } else {
             entry = malloc((strlen(files->d_name) + 1) * sizeof(char));
             strcpy(entry, files->d_name);
-            atra_list_add(&result, entry);
+            atra_list_add(&result, &entry);
         }
     }
     closedir(dir);
@@ -425,7 +471,7 @@ ATRA_API
 void
 atra_util_setrootdir(const char *dir)
 {
-
+    ATRA_UNUSED(dir);
 #ifdef _WIN32
 
 #else
@@ -433,12 +479,13 @@ atra_util_setrootdir(const char *dir)
 #endif
 }
 
-/* Returns a pointer to the executable's path string (internal) */
+/* Returns a pointer to the executable's path string.
+ * Returned memory must be freed. */
 ATRA_API
-const char *
+char *
 atra_util_getexecpath(void)
 {
-    static char result[MAX_FILEPATH_LENGTH] = {0};
+/*    static char result[MAX_FILEPATH_LENGTH] = {0};
 #ifdef _WIN32
     GetModuleFileName(NULL, result, MAX_FILEPATH_LENGTH);
 #else
@@ -449,7 +496,17 @@ atra_util_getexecpath(void)
     }
 #endif
 
-    return result;
+    return result;*/
+
+    char *path;
+    int length, dirname_length;
+    
+    length = wai_getExecutablePath(NULL, 0, NULL);
+    path = malloc((size_t)(length + 1) * sizeof(char));
+    wai_getExecutablePath(path, length, &dirname_length);
+    path[length] = '\0';
+
+    return path;
 }
 
 /* Returns a pointer to the operating system's application data directory (internal)
@@ -492,6 +549,7 @@ atra_util_hasdroppedfiles(void)
 #else
 
 #endif
+    return 0;
 }
 
 /* Returns a list of file paths which have been dropped into the window */
@@ -499,12 +557,13 @@ ATRA_API
 List
 atra_util_getdroppedfiles(void)
 {
-
+    List files = {0};
 #ifdef _WIN32
 
 #else
 
 #endif
+    return files;
 }
 
 /* Returns the timestamp of the last time a file was modified */
@@ -518,6 +577,7 @@ atra_util_getfilemodtime(void)
 #else
 
 #endif
+    return 0;
 }
 
 /* Compresses an array of bytes using the DEFLATE algorithm.
@@ -526,7 +586,18 @@ ATRA_API
 u8 *
 atra_util_compressbytes(u8 *data, int length, int *comp_length)
 {
+    const uint QUALITY = 8;
+    
+    u8 *comp_data = NULL;
+    struct sdefl sdefl = {0};
+    int bounds = sdefl_bound(length);
 
+    comp_data = (u8 *) calloc(bounds, 1);
+    *comp_length = sdeflate(&sdefl, comp_data, data, length, QUALITY);
+
+    atra_log_print(LOG_INFO, "util: Compression: %iB -> %iB", length, *comp_length);
+
+    return comp_data;
 }
 
 /* Decompresses an array of bytes using the DEFLATE algorithm.
@@ -535,7 +606,21 @@ ATRA_API
 u8 *
 atra_util_decompressbytes(u8 *data, int comp_length, int *length)
 {
+    u8 *decomp_data = NULL;
+    u8 *temp;
+    int decomp_length;
 
+    decomp_data = calloc(MAX_DECOMPRESSION_SIZE * 1024 * 1024, 1);
+    decomp_length = sinflate(decomp_data, MAX_DECOMPRESSION_SIZE, data, comp_length);
+    temp = realloc(data, decomp_length);
+    atra_util_checkalloc(temp);
+
+    decomp_data = temp;
+    *length = decomp_length;
+
+    atra_log_print(LOG_INFO, "util: Decompression: %iB -> %iB", length, decomp_length);
+
+    return decomp_data;
 }
 
 
@@ -603,15 +688,14 @@ int
 atra_utf_getcodepointcount(const char *str)
 {
     uint length = 0;
-    char *ptr = (char *)&str[0];
     int next, letter;
 
-    while (*ptr != '\0') {
+    while (*str != '\0') {
         next = 0;
-        letter = atra_utf_getcodepoint(ptr, &next);
+        letter = atra_utf_getcodepoint(str, &next);
 
         if (letter == 0x3f) {
-            ptr += 1;
+            str += 1;
         }
         length++;
     }
@@ -817,9 +901,8 @@ atra_utf_insertstr(int *codepoints, int *code_count, const char *str, int pos)
     str_codes = atra_utf_tocodepoints(str, &str_len);
     result = realloc(codepoints, (result_len + str_len) * sizeof(int));
 
-    memcpy(result, codepoints, pos * sizeof(int));
+    memmove(result + pos + str_len, result + pos, (result_len - pos) * sizeof(int));
     memcpy(result + pos, str_codes, str_len * sizeof(int));
-    memcpy(result + pos + str_len, codepoints + pos, (result_len - pos) * sizeof(int));
     *code_count += str_len;
 
     free(str_codes);
@@ -1085,8 +1168,9 @@ atra_util_randomfloat(float min, float max)
         srand((unsigned) time(NULL));
         rand_init = 1;
     }
+    const float r = rand();
 
-    return (diff * ((float)rand() / (float)RAND_MAX)) + min;
+    return (diff * (r / (float)RAND_MAX)) + min;
 }
 
 
@@ -1159,6 +1243,14 @@ atra_util_openurl(const char *url)
 #endif
     system(cmd);
     free(cmd);
+}
+
+/* Returns the number of logical CPU cores */
+ATRA_API
+int
+atra_util_getcorecount(void)
+{
+    return SDL_GetCPUCount();
 }
 
 #ifdef __cplusplus

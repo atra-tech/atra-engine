@@ -119,7 +119,7 @@ typedef struct Time {
     u32 target;         /* Desired time for one frame, 0 disables */
     u32 frame_count;    /* Number of frames drawn */
 } Time;
-
+/*
 const static char *event_names[] = {
     "ATRA_QUIT",
     "ATRA_APP_TERMINATING",
@@ -150,7 +150,7 @@ const static char *event_names[] = {
     "ATRA_DROPBEGIN",
     "ATRA_DROPCOMPLETE"
 };
-
+*/
 //static System sys = {0};
 static Window window = {0};
 static Input input = {0};
@@ -182,11 +182,13 @@ atra_engine_start(int width, int height, const char *title)
     atra_window_init(width, height, title);
     atra_input_init();
     atra_time_init();
-    //atra_mempool_init(32 * 1024 * 1024);
     atra_gl_init(width, height);
+    //atra_mempool_init(32 * 1024 * 1024);
     atra_gui_init();
     atra_audio_init();
     atra_net_init();
+
+    atra_window_setupviewport();
 }
 
 ATRA_API
@@ -221,8 +223,8 @@ atra_engine_stop(void)
     atra_log_stop();
     //atra_mempool_stop();
 
-    SDL_DestroyWindow(window.window);
     SDL_GL_DeleteContext(window.context);
+    SDL_DestroyWindow(window.window);
     IMG_Quit();
     SDL_Quit();
 }
@@ -278,7 +280,7 @@ atra_context_init(int width, int height)
         atra_util_die(NULL);
     }
 
-    if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) {
+    if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) == 0) {
         atra_log_print(LOG_FATAL, "core: Unable to initialise SDL_image");
         atra_util_sdl_printerror();
         atra_util_die(NULL);
@@ -379,7 +381,7 @@ atra_context_init(int width, int height)
         atra_util_sdl_printerror();
         atra_util_die(NULL);
     }
-    //SDL_GL_MakeCurrent(window.window, window.context);
+    SDL_GL_MakeCurrent(window.window, window.context);
 
     if (gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress) == 0) {
         atra_log_print(LOG_FATAL, "core: Unable to set GLAD process loader");
@@ -392,8 +394,6 @@ atra_context_init(int width, int height)
             atra_util_sdl_printerror();
         }
     }
-
-    atra_window_setupviewport(window.screen.w, window.screen.h);
 }
 
 /* Returns 1 if the window should close */
@@ -593,10 +593,10 @@ atra_window_setsize(int w, int h)
     SDL_SetWindowSize(window.window, w, h);
 }
 
-/* Set viewport for a given width and height */
+/* Set viewport for the window's width and height */
 ATRA_API
 void
-atra_window_setupviewport(int width, int height)
+atra_window_setupviewport(void)
 {
     atra_gl_viewport(
         window.render_offset.x / 2,
@@ -758,7 +758,7 @@ atra_input_update(void)
                 window.resized = 1;
                 window.screen.w = event.window.data1;
                 window.screen.h = event.window.data2;
-                atra_window_setupviewport(window.screen.w, window.screen.h);
+                atra_window_setupviewport();
                 atra_gui_fullremesh();
             }
         } else {
@@ -1011,7 +1011,7 @@ ATRA_INLINE
 void
 atra_pad_update(Event *e)
 {
-
+    ATRA_UNUSED(e);
 }
 
 /* Returns 1 if a gamepad is detected and available */
@@ -1109,7 +1109,7 @@ ATRA_API
 i32
 atra_pad_getanalogcount(void)
 {
-
+    return 0;
 }
 
 /* Returns the movement value for a specific analog input */
@@ -1117,7 +1117,10 @@ ATRA_API
 float
 atra_pad_getanalogmovement(i32 gamepad, i32 analog_input)
 {
+    ATRA_UNUSED(gamepad);
+    ATRA_UNUSED(analog_input);
 
+    return 0.0f;
 }
 
 /* Sets the internal gamepad mappings */
@@ -1125,7 +1128,9 @@ ATRA_API
 int
 atra_pad_setmappings(const char *mappings)
 {
+    ATRA_UNUSED(mappings);
 
+    return 0;
 }
 
 

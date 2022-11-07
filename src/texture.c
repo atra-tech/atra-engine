@@ -13,7 +13,10 @@
 
 #define mix(a, b, t) ((a) + ((b) - (a)) * (t))
 #define clamp(x, min, max) (((x) < (min)) ? (min) : (((x) > (max)) ? (max) : (x)))
-#define fract(x) ((x) - SDL_floorf(x));
+#define fract(x) ((x) - floorf(x));
+
+ATRA_OPTION_DEFINE(Image)
+ATRA_OPTION_DEFINE(Texture)
 
 /* Converts an RGB image to RGBA */
 ATRA_INLINE
@@ -22,18 +25,16 @@ atra_image_addalpha(void *src, void *dst, int w, int h)
 {
     int i, j;
     i8 *a, *b;
-    i8 data[4];
 
     a = src;
     b = dst;
-    data[3] = 0xFF;
 
     for (i = 0; i < h; i++) {
         for (j = 0; j < w; j++) {
             b[0] = a[0];
             b[1] = a[1];
             b[2] = a[2];
-            b[3] = 0xFF;
+            b[3] = (i8) 0xFF;
             a += 3;
             b += 4;
         }
@@ -46,7 +47,7 @@ atra_image_addalpha(void *src, void *dst, int w, int h)
 
 /* Creates a new image from data in a file */
 ATRA_API
-Image
+Option_Image
 atra_image_loadfile(const char *path)
 {
     Image image = {0};
@@ -54,7 +55,7 @@ atra_image_loadfile(const char *path)
 
     if (!surface) {
         atra_log_print(LOG_ERROR, "image: %s", IMG_GetError());
-        return image;
+        return atra_option_Image_error();
     }
     image.width = surface->w;
     image.height = surface->h;
@@ -68,7 +69,7 @@ atra_image_loadfile(const char *path)
     }
     SDL_FreeSurface(surface);
 
-    return image;
+    return atra_option_Image_ok(image);
 }
 
 /* Frees memory occupied by image data */
@@ -369,7 +370,14 @@ ATRA_API
 Image
 atra_image_gengradient_radial(Color inner, Color outer, int w, int h)
 {
+    Image image = {0};
 
+    ATRA_UNUSED(inner);
+    ATRA_UNUSED(outer);
+    ATRA_UNUSED(w);
+    ATRA_UNUSED(h);
+
+    return image;
 }
 
 /* Generates a white noise image */
@@ -462,7 +470,7 @@ atra_image_getscreen(void)
             img_data[img_index] = scr_data[scr_index];
 
             if ((j + 1) % 4 == 0) {
-                img_data[img_index] = 0xFF;
+                img_data[img_index] = (i8) 0xFF;
             }
         }
     }
@@ -484,12 +492,12 @@ atra_image_quadtouvs(const Image *image, IQuad quad, float *uvs)
     const float x0 = quad.x * pix_w + offset_x;
     const float y0 = quad.y * pix_h + offset_y;
     const float x1 = (quad.x + quad.w) * pix_w - offset_x;
-    const float y1 = (quad.y + quad.y) * pix_h - offset_y;
+    const float y1 = (quad.y + quad.h) * pix_h - offset_y;
 
-    uvs[0] = x0; uvs[1] = y1;
-    uvs[2] = x0; uvs[3] = y0;
-    uvs[4] = x1; uvs[5] = y0;
-    uvs[5] = x1; uvs[7] = y1;
+    uvs[0] = x0; uvs[1] = y0;
+    uvs[2] = x0; uvs[3] = y1;
+    uvs[4] = x1; uvs[5] = y1;
+    uvs[6] = x1; uvs[7] = y0;
 }
 
 /*
@@ -498,16 +506,20 @@ atra_image_quadtouvs(const Image *image, IQuad quad, float *uvs)
 
 /* Creates a new OpenGL texture from a file */
 ATRA_API
-Texture
+Option_Texture
 atra_texture_loadfile(const char *path)
 {
     Texture tex = {0};
-    Image image;
+    Option_Image image;
 
     image = atra_image_loadfile(path);
 
-    tex.width = image.width;
-    tex.height = image.height;
+    if (image.none) {
+        atra_log_print(LOG_WARN, "texture: Unable to load texture: Failed to load image file: \"%s\"", path);
+        return atra_option_Texture_error();
+    }
+    tex.width = image.some.width;
+    tex.height = image.some.height;
     tex.mipmaps = 1;
     tex.base_sample = ATRA_SAMPLE_NEAREST;
     tex.mip_sample = ATRA_SAMPLE_NEAREST;
@@ -517,7 +529,7 @@ atra_texture_loadfile(const char *path)
 
     glTexImage2D(GL_TEXTURE_2D,
             0, GL_RGBA, tex.width, tex.height,
-            0, GL_RGBA, GL_UNSIGNED_BYTE, image.data);
+            0, GL_RGBA, GL_UNSIGNED_BYTE, image.some.data);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -527,7 +539,7 @@ atra_texture_loadfile(const char *path)
 
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    return tex;
+    return atra_option_Texture_ok(tex);
 }
 
 /* Creates a new OpenGL texture from an existing image */
@@ -583,12 +595,22 @@ atra_texture_bindcubemap(Texture *tex, int tex_unit)
     glBindTexture(GL_TEXTURE_CUBE_MAP, tex->id);
 }
 
+/* Removes a texture of the GPU and deletes it */
+ATRA_API
+void
+atra_texture_destroy(Texture *tex)
+{
+    glDeleteTextures(1, &tex->id);
+}
+
+
 /* Loads the given texture for rendering (framebuffer) */
 ATRA_API
 RenderTexture
 atra_texture_loadrendertex(int width, int height)
 {
     RenderTexture tex = {0};
+    float border_color[] = {1.0f, 1.0f, 1.0f, 1.0f};
 
     tex.id = atra_gl_fbo_create();
 
@@ -600,15 +622,19 @@ atra_texture_loadrendertex(int width, int height)
         tex.color.height = height;
         tex.color.mipmaps = 1;
 
-        tex.depth.id = atra_gl_tex_createdepth(width, height, 1);
+        tex.depth.id = atra_gl_tex_createdepth(width, height, 0);
         tex.depth.width = width;
         tex.depth.height = height;
         tex.depth.mipmaps = 1;
 
+        atra_gl_tex_setparameter(tex.depth.id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        atra_gl_tex_setparameter(tex.depth.id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_color);
+
         atra_gl_fbo_attach(tex.id, tex.color.id,
                 ATRA_ATTACHMENT_COLOR_CHANNEL0, ATRA_ATTACHMENT_TEXTURE_2D, 0);
         atra_gl_fbo_attach(tex.id, tex.depth.id,
-                ATRA_ATTACHMENT_DEPTH, ATRA_ATTACHMENT_RENDERBUFFER, 0);
+                ATRA_ATTACHMENT_DEPTH, ATRA_ATTACHMENT_TEXTURE_2D, 0);
         
         if (atra_gl_fbo_iscomplete(tex.id)) {
             /* TODO: Put some message here */
@@ -619,26 +645,18 @@ atra_texture_loadrendertex(int width, int height)
     return tex;
 }
 
-/* Removes a texture of the GPU and deletes it */
-ATRA_API
-void
-atra_texture_destroy(Texture *tex)
-{
-    glDeleteTextures(1, &tex->id);
-}
-
 /* Removes the render texture from the GPU and deletes it */
 ATRA_API
 void
 atra_texture_destroyrendertex(RenderTexture *tex)
 {
-    int i;
-
     if (tex->id > 0) {
-        atra_gl_tex_delete(tex->color.id);
+        atra_texture_destroy(&tex->color);
+        atra_texture_destroy(&tex->depth);
         atra_gl_fbo_delete(tex->id);
     }
 }
+
 
 /* Sets the sampling style for the base texture level */
 ATRA_API
@@ -664,6 +682,7 @@ atra_texture_samplebase(Texture *tex, int mode)
 
     glBindTexture(GL_TEXTURE_2D, tex->id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, m);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, m);
 }
 
 /* Sets the sampling style for texture mipmaps */
@@ -687,6 +706,7 @@ atra_texture_samplemip(Texture *tex, int mode)
 
         glBindTexture(GL_TEXTURE_2D, tex->id);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, m);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, m);
     }
 }
 
@@ -728,7 +748,7 @@ atra_texture_write(Texture *tex, const void *pixels)
             tex->width, tex->height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 }
 
-/* Similar to atra_texture_update() but only updates a specified rectangle */
+/* Similar to atra_texture_write() but only updates a specified rectangle */
 ATRA_API
 void
 atra_texture_writesub(Texture *tex, int x, int y, int w, int h, const void *pixels)
@@ -768,10 +788,117 @@ atra_texture_quadtouvs(const Texture *tex, IQuad quad, float *uvs)
     const float x0 = quad.x * pix_w + offset_x;
     const float y0 = quad.y * pix_h + offset_y;
     const float x1 = (quad.x + quad.w) * pix_w - offset_x;
-    const float y1 = (quad.y + quad.y) * pix_h - offset_y;
+    const float y1 = (quad.y + quad.h) * pix_h - offset_y;
 
-    uvs[0] = x0; uvs[1] = y1;
-    uvs[2] = x0; uvs[3] = y0;
-    uvs[4] = x1; uvs[5] = y0;
-    uvs[5] = x1; uvs[7] = y1;
+    uvs[0] = x0; uvs[1] = y0;
+    uvs[2] = x0; uvs[3] = y1;
+    uvs[4] = x1; uvs[5] = y1;
+    uvs[6] = x1; uvs[7] = y0;
+}
+
+/*
+ *  G-Buffer Functions
+ */
+
+ATRA_API
+GBuffer
+atra_gbuffer_create(void)
+{
+    GBuffer gbuffer;
+
+    const uint scr_w = atra_window_getwidth();
+    const uint scr_h = atra_window_getheight();
+
+    glGenFramebuffers(1, &gbuffer.gbuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, gbuffer.gbuffer);
+
+    glGenTextures(1, &gbuffer.buffers[0]);
+    glBindTexture(GL_TEXTURE_2D, gbuffer.buffers[ATRA_GBUFFER_POSITION]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, scr_w, scr_h, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+            gbuffer.buffers[ATRA_GBUFFER_POSITION], 0);
+    
+    glGenTextures(1, &gbuffer.buffers[1]);
+    glBindTexture(GL_TEXTURE_2D, gbuffer.buffers[ATRA_GBUFFER_NORMAL]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, scr_w, scr_h, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D,
+            gbuffer.buffers[ATRA_GBUFFER_NORMAL], 0);
+
+    glGenTextures(1, &gbuffer.buffers[2]);
+    glBindTexture(GL_TEXTURE_2D, gbuffer.buffers[ATRA_GBUFFER_ALBEDOSPEC]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, scr_w, scr_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D,
+            gbuffer.buffers[ATRA_GBUFFER_ALBEDOSPEC], 0);
+
+    glGenTextures(1, &gbuffer.buffers[3]);
+    glBindTexture(GL_TEXTURE_2D, gbuffer.buffers[ATRA_GBUFFER_DATA]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, scr_w, scr_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D,
+            gbuffer.buffers[ATRA_GBUFFER_DATA], 0);
+
+    atra_gl_fbo_activatedrawbuffers(ATRA_GBUFFER_TOTAL);
+
+    glGenRenderbuffers(1, &gbuffer.depth);
+    glBindRenderbuffer(GL_RENDERBUFFER, gbuffer.depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, scr_w, scr_h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+            GL_RENDERBUFFER, gbuffer.depth);
+    
+    atra_gl_fbo_iscomplete(gbuffer.gbuffer);
+    atra_gl_fbo_disable();
+
+    return gbuffer;
+}
+
+/* Deletes a g-buffer */
+ATRA_API
+void
+atra_gbuffer_delete(GBuffer *gbuffer)
+{
+    glDeleteFramebuffers(1, &gbuffer->gbuffer);
+    glDeleteTextures(ATRA_GBUFFER_TOTAL, gbuffer->buffers);
+    glDeleteRenderbuffers(1, &gbuffer->depth);
+}
+
+/* Binds the g-buffer */
+ATRA_API
+void
+atra_gbuffer_enable(GBuffer *gbuffer)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, gbuffer->gbuffer);
+}
+
+/* Unbinds the g-buffer */
+ATRA_API
+void
+atra_gbuffer_disable(void)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+/* Blit depth buffer to default framebuffer's depth buffer */
+ATRA_API
+void
+atra_gbuffer_blitdepth(GBuffer *gbuffer)
+{
+    const uint scr_w = atra_window_getwidth();
+    const uint scr_h = atra_window_getheight();
+
+    /* TODO: Rewrite this into another shader stage as it may not work on many
+            systems and may cause issues. */
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, gbuffer->gbuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+    glBlitFramebuffer(0, 0, scr_w, scr_h, 0, 0, scr_w, scr_h,
+            GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

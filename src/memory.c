@@ -15,15 +15,6 @@
 #include <string.h>
 #include <pthread.h>
 
-#define ATRA_LIST_INIT_SIZE         8
-#define ATRA_QUEUE_INIT_SIZE        8
-#define ATRA_HASHMAP_INIT_SIZE      8
-#define ATRA_MEMPOOL_CHUNK_SIZE     16777216    /* 16MB */
-
-#define ATRA_LIST_BYTE_ALIGN    8
-#define ATRA_HASHMAP_MAX_LOAD   0.7
-
-
 ATRA_INLINE void atra_list_grow(List *list);
 ATRA_INLINE void atra_queue_grow(Queue *queue);
 ATRA_INLINE int atra_queue_isnearfull(Queue *queue);
@@ -444,7 +435,9 @@ atra_queue_isnearfull(Queue *queue)
 ATRA_INLINE void atra_hashmap_grow(HashMap *map);
 ATRA_INLINE int atra_hashmap_keyisempty(HashMap *map, size_t index);
 
-/* Returns a new hashmap with the given hash and equality functions */
+/* Returns a new hashmap with the given hash and equality functions.
+ * NOTE: It is essential to use a pointer as a key where 0 not a null value
+ * of the key, as some functions use 0 to check if the key is empty. */
 ATRA_API
 HashMap
 atra_hashmap_create(size_t key_size, size_t val_size,
@@ -468,81 +461,127 @@ atra_hashmap_create(size_t key_size, size_t val_size,
 /* Deallocates hashmap internal memory */
 ATRA_API
 void
-atra_hashmap_delete(HashMap *map)
+atra_hashmap_delete(HashMap *map, int free_mode)
 {
+    size_t i;
+    void **k;
+
+    for (i = 0; i < map->size; i++) {
+        k = (void **)(map->keys + i * map->key_size);
+
+        if (*k != NULL) {
+            if (BIT_CHK(free_mode, HASH_FREE_KEY))
+                free(*k);
+            if (BIT_CHK(free_mode, HASH_FREE_VAL))
+                free(*((void **)(map->vals + i * map->val_size)));
+        }
+    }
     free(map->keys);
     free(map->vals);
 }
 
-/* Adds a value to the hashmap with an associated key
+/* Adds a value to the hashmap with an associated key (copies `key` and `val` contents)
  * Returns 1 on success, otherwise returns 0 */
 ATRA_API
 int
 atra_hashmap_add(HashMap *map, const void *key, const void *val)
 {
-    size_t i, hash;
-    const double loadfactor = (map->occupied + 1) / (double)map->size;
-    i8 *key_dest, *val_dest;
+    const double load_factor = (map->occupied + 1) / (double)map->size;
 
-    if (loadfactor > ATRA_HASHMAP_MAX_LOAD) {
+    size_t i;
+    void *k, *v;
+
+    if (load_factor > ATRA_HASHMAP_MAX_LOAD) {
         atra_hashmap_grow(map);
     }
-    hash = map->hash(key) % map->size;
+    const size_t hash = map->hash(key) % map->size;
 
-    for (i = hash; i < map->size; i = (i + 1) % map->size) {
-        key_dest = map->keys + i * map->key_size;
-        if (atra_hashmap_keyisempty(map, i)) {
-            val_dest = map->vals + i * map->val_size;
-            memcpy(key_dest, key, map->key_size);
-            memcpy(val_dest, val, map->val_size);
+    for (i = 0; i < map->size; i++) {
+        const size_t index = (i + hash) % map->size;
+        k = map->keys + index * map->key_size;
+
+        if (atra_hashmap_keyisempty(map, index)) {
+            v = map->vals + index * map->val_size;
+            memcpy(k, key, map->key_size);
+            memcpy(v, val, map->val_size);
             break;
-        } else if (map->equal(key, key_dest)) {
+        } else if (map->equal(key, k)) {
             atra_log_print(LOG_WARN, "memory: unable to add element to " \
                     "hashmap: duplicate key found");
             return 0;
         }
-
     }
     map->occupied++;
 
     return 1;
 }
 
-/* Returns a pointer to the stored hashmap value */
+/* Returns a pointer to the stored hashmap value, returns NULL if not found */
 ATRA_API
 void *
 atra_hashmap_get(HashMap *map, const void *key)
 {
     size_t i;
     size_t hash = map->hash(key) % map->size;
+    void *k;
 
-    for (i = hash; i < map->size; i = (i + 1) % map->size) {
-        if (map->equal(key, map->keys + i * map->key_size)) {
-            return map->vals + i * map->val_size;
-        } else if (atra_hashmap_keyisempty(map, i)) {
+    for (i = 0; i < map->size; i++) {
+        const size_t index = (i + hash) % map->size;
+        k = map->keys + index * map->key_size;
+
+        if (atra_hashmap_keyisempty(map, index)) {
             return NULL;
-        } 
+        } else if (map->equal(key, k)) {
+            return map->vals + index * map->val_size;
+        }
     }
 
     return NULL;
 }
 
+/* Returns a pointer to the key at the given index */
+ATRA_API
+void * atra_hashmap_getkey(HashMap *map, size_t id)
+{
+    return (map->keys + id * map->key_size);
+}
+
+/* Returns a pointer to the value at the given index */
+ATRA_API
+void *
+atra_hashmap_getval(HashMap *map, size_t id)
+{
+    return (map->vals + id * map->val_size);
+}
+
 /* Removes the entry with the associated key */
 ATRA_API
 void
-atra_hashmap_remove(HashMap *map, const void *key)
+atra_hashmap_remove(HashMap *map, const void *key, int free_mode)
 {
     size_t i;
     size_t hash = map->hash(key) % map->size;
+    void **k, **v;
 
-    for (i = hash; i < map->size; i = (i + 1) % map->size) {
-        if (map->equal(key, map->keys + i * map->key_size)) {
-            memset(map->keys + i * map->key_size, 0, map->key_size);
-            return;
-        } else if (atra_hashmap_keyisempty(map, i)) {
+    /* TODO: Account for entries removed which have a colliding hash */
+
+    for (i = 0; i < map->size; i++) {
+        const size_t index = (i + hash) % map->size;
+        k = (void **)(map->keys + index * map->key_size);
+
+        if (atra_hashmap_keyisempty(map, index)) {
             atra_log_print(LOG_WARN, "memory: unable to remove hashmap " \
                     "element: key does not exist");
             return; 
+        } else if (map->equal(key, k)) {
+            v = (void **)(map->vals + index * map->val_size);
+
+            if (BIT_CHK(free_mode, HASH_FREE_KEY))
+                free(*k);
+            if (BIT_CHK(free_mode, HASH_FREE_VAL))
+                free(*v);
+            memset(k, 0, map->key_size);
+            return;
         }
     }
 }
@@ -550,8 +589,21 @@ atra_hashmap_remove(HashMap *map, const void *key)
 /* Removes all values and keys from the hashmap */
 ATRA_API
 void
-atra_hashmap_clear(HashMap *map)
+atra_hashmap_clear(HashMap *map, int free_mode)
 {
+    uint i;
+    void **k;
+
+    for (i = 0; i < map->size; i++) {
+        k = (void **)(map->keys + i * map->key_size);
+        
+        if (*k != NULL) {
+            if (BIT_CHK(free_mode, HASH_FREE_KEY))
+                free(*k);
+            if (BIT_CHK(free_mode, HASH_FREE_VAL))
+                free(*((void **)(map->vals + i * map->val_size)));
+        }
+    }
     memset(map->keys, 0, map->key_size * map->size);
     map->occupied = 0;
 }
@@ -568,21 +620,27 @@ ATRA_INLINE
 void
 atra_hashmap_grow(HashMap *map)
 {
+    const size_t size = map->size;
+
     i8 *keys = map->keys;
     i8 *vals = map->vals;
-    size_t size = map->size;
-    size_t i;
+    size_t i, j;
+    uint found;
 
-    size = map->size;
     map->size *= 2;
     map->keys = calloc(map->size, map->key_size);
     map->vals = malloc(map->size * map->val_size);
 
     for (i = 0; i < size; i++) {
-        if (atra_hashmap_keyisempty(map, i) == 0) {
-            atra_hashmap_add(map,
-                    keys + i * map->key_size,
-                    vals + i * map->val_size);
+        const i8 * const k = keys + i * map->key_size;
+        found = 0;
+        
+        for (j = 0; j < map->key_size; j++) {
+            found += (k[j] != 0);
+        }
+        
+        if (found) {
+            atra_hashmap_add(map, k, vals + i * map->val_size);
         }
     }
     free(keys);
@@ -596,15 +654,15 @@ atra_hashmap_keyisempty(HashMap *map, size_t index)
 {
     size_t size, i;
     int found;
-    i8 *key_pos;
+    i8 *k;
 
     i = 0;
     found = 0;
-    size = map->size;
-    key_pos = map->keys + index * map->key_size; 
+    size = map->key_size;
+    k = map->keys + index * map->key_size; 
 
     for (i = 0; i < size; i++) {
-        found += *(key_pos + i) != 0;
+        found += (*(k + i) != 0);
     }
 
     return (found == 0);
@@ -614,14 +672,18 @@ ATRA_API
 size_t
 atra_hashmap_str_hash(const void *str)
 {
-    //const char *pstr = *(char **)str;
-    const char *pstr = str;
-    u64 hash = 0;
-    int c;
+    const char * const pstr = *((char **) str);
+    const size_t len = strlen(pstr);
+    size_t hash = 0;
+    size_t c;
 
-    for (c = *pstr; c != '\0'; c = *(++pstr)) {
-        hash = c + (hash << 6) + (hash << 16) - hash;
+    for (c = 0; c < len; c++) {
+        hash = pstr[c] + (hash << 6) + (hash << 16) - hash;
     }
+
+    /*for (c = *pstr; c != '\0'; c = *(++pstr)) {
+        hash = c + (hash << 6) + (hash << 16) - hash;
+    }*/
 
     return hash;
 }
@@ -630,11 +692,10 @@ ATRA_API
 int
 atra_hashmap_str_eq(const void *s1, const void *s2)
 {
-/*    const char * const *s1_str = s1;
-    const char * const *s2_str = s2;
+    const char * const s1_str = *((char **) s1);
+    const char * const s2_str = *((char **) s2);
 
-    return strcmp(*s1_str, *s2_str) == 0;*/
-    return strcmp(s1, s2) == 0;
+    return (strcmp(s1_str, s2_str) == 0);
 }
 
 
@@ -923,3 +984,32 @@ atra_mempool_getpool(void)
 {
     return &pool;
 }
+
+    
+ATRA_LIST_DEFINE(char)
+ATRA_LIST_DEFINE(short)
+ATRA_LIST_DEFINE(int)
+ATRA_LIST_DEFINE(long)
+
+ATRA_LIST_DEFINE(uchar)
+ATRA_LIST_DEFINE(ushort)
+ATRA_LIST_DEFINE(uint)
+ATRA_LIST_DEFINE(ulong)
+
+ATRA_LIST_DEFINE(i8)
+ATRA_LIST_DEFINE(u8)
+ATRA_LIST_DEFINE(i16)
+ATRA_LIST_DEFINE(u16)
+ATRA_LIST_DEFINE(i32)
+ATRA_LIST_DEFINE(u32)
+ATRA_LIST_DEFINE(i64)
+ATRA_LIST_DEFINE(u64)
+
+ATRA_LIST_DEFINE(float)
+ATRA_LIST_DEFINE(double)
+ATRA_LIST_DEFINE(f32)
+ATRA_LIST_DEFINE(f64)
+
+ATRA_LIST_DEFINE(size_t)
+ATRA_LIST_DEFINE(uintptr_t)
+

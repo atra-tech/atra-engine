@@ -19,7 +19,7 @@
 #include "physics.h"
 #include "camera.h"
 
-#define ATRA_MAX_MESH_VERTEX_BUFFERS    8
+#define ATRA_MAX_MESH_VERTEX_BUFFERS    16
 #define ATRA_DEFAULT_MESH_SIZE          8
 
 enum buffer_flags {
@@ -65,17 +65,18 @@ typedef struct Mesh {
     
     IMMeshInfo *im;         /* Mesh data unique to immediate-style drawing */
 
-    float *verts;           /* f32: Vertices */
-    float *uvs;             /* f32: Vertex UV texture coordinates */
-    float *uvs2;            /* f32: Vertex secondary UV texture coordinates */
-    float *norms;           /* f32: Vertex normal vectors */
-    float *tangents;        /* f32: Tangents */
-    u8 *colors;             /* u8:  Vertex color modifier */
-    uint *indices;          /* u32: Vertex indices */
+    float *verts;           /* Vertices */
+    float *uvs;             /* Vertex UV texture coordinates */
+    float *uvs2;            /* Vertex secondary UV texture coordinates */
+    float *norms;           /* Vertex normal vectors */
+    float *tangents;        /* Tangents */
+    float *bitangents;      /* Bitangents */
+    u8 *colors;             /* Vertex color modifier */
+    uint *indices;          /* Vertex indices */
 
     float *anim_verts;      /* Animated vertex positions (post-transform) */
     float *anim_norms;      /* Animated normals (post-transform) */
-    int *bone_ids;          /* Vertex bone IDs (max 4 per vertex) */
+    float *bone_ids;          /* Vertex bone IDs (max 4 per vertex) */
     float *bone_weights;    /* Vertex bone weight */
 
     uint vao_id;            /* OpenGL Vertex Array Object ID */
@@ -95,10 +96,20 @@ typedef struct BoneInfo {
     int parent;
 } BoneInfo;
 
-/* Model animation information */
+/* Model animation data for direct, smooth interpolation */
+typedef struct ModelAnimRaw {
+    int bone_count;         /* Number of bones */
+    float duration;         /* Total duration of the animation */
+    int frame_count;        /* Number of keyframes in animation channels */
+    float *frame_times;     /* Timestamp of each keyframe (seconds) */
+    BoneInfo *bones;        /* Bone information array */
+    Transform **frame_poses;/* Poses array by keyframe */
+} ModelAnimRaw;
+
+/* Model animation data as 60 FPS transform frames */
 typedef struct ModelAnim {
     int bone_count;         /* Number of bones */
-    int frame_count;        /* Number of animation key-frames */
+    int frame_count;        /* Number of frames in animation */
     BoneInfo *bones;        /* Bone information array */
     Transform **frame_poses;/* Poses array by frame */
 } ModelAnim;
@@ -113,9 +124,14 @@ typedef struct Model {
     Material *materials;    /* Array of materials used by model */
     int *mesh_materials;    /* Material indices associated with each mesh */
 
+    int pose_init;          /* Set when bind pose has been baked into the meshes  */
     int bone_count;         /* Number of bones in model */
     BoneInfo *bones;        /* Bone information array */
     Transform *bind_pose;   /* Initial transforms */
+    
+    float *invbind_mats;    /* Inverse bone bindpose matrices */
+    float *world_mats;      /* Bone world matrix data */
+    float *bone_mats;       /* Final bone transform array for skinning */
 } Model;
 
 
@@ -124,7 +140,7 @@ typedef struct Model {
  */
 
 /* Returns a new model from model data from a file (GLTF) */
-ATRA_API Model atra_model_loadfile(const char *path);
+ATRA_API Model atra_model_loadfile(const char *path, int auto_upload);
 
 /* Returns a new model constructed from a mesh */
 ATRA_API Model atra_model_loadmesh(Mesh *mesh);
@@ -144,6 +160,14 @@ ATRA_API void atra_model_draw(Model *model, vec3 pos, float scale, Color tint);
 /* Renders a model to the screen (extended parameters) */
 ATRA_API void atra_model_drawext(Model *model, vec3 pos, vec3 rot_axis,
         float rot_angle, vec3 scale, Color tint);
+
+/* Instance renders a model to the screen */
+ATRA_API void atra_model_draw_instanced(Model *model, uint inst_count, vec3 pos,
+        float scale, Color tint, mat4 *transforms);
+
+/* Instance renders a model to the screen (extended parameters) */
+ATRA_API void atra_model_drawext_instanced(Model *model, uint inst_count, vec3 pos,
+        vec3 rot_axis, float rot_angle, vec3 scale, Color tint, mat4 *transforms);
 
 /* Renders a model wireframe to the screen */
 ATRA_API void atra_model_wiredraw(Model *model, vec3 pos, float scale, Color tint);
@@ -228,7 +252,8 @@ ATRA_API void atra_mesh_update(Mesh *mesh, int index, void *data, int size, int 
 ATRA_API void atra_mesh_draw(Mesh *mesh, Material *mat, mat4 transform);
 
 /* Instance renders a mesh with a single material and different transforms */
-ATRA_API void atra_mesh_drawinstanced(Mesh *mesh, Material *mat, mat4 *transforms, int count);
+ATRA_API void atra_mesh_drawinstanced(Mesh *mesh, Material *mat,
+        mat4 *transforms, int count, float *bone_transforms, uint bone_count);
 
 /* Exports mesh data to a file.  Returns 1 on success, otherwise 0 */
 ATRA_API void atra_mesh_export(Mesh *mesh, const char *path);
@@ -244,6 +269,7 @@ ATRA_API void atra_mesh_calcbitangents(Mesh *mesh);
 
 /* Computes a mesh from a heightmap image */
 ATRA_API Mesh atra_mesh_loadheightmap(Image *heightmap, vec3 size);
+
 
 /*
  *  Material functions
@@ -281,6 +307,26 @@ ATRA_API void atra_anim_deletearray(ModelAnim *anims, int count);
 
 /* Returns 1 if the model animation skeleton is a match */
 ATRA_API int atra_anim_modelskeletonmatch(Model *model, ModelAnim *anim);
+
+
+/* Loads an array of model animations from a file (GLTF) */
+ATRA_API ModelAnimRaw * atra_rawanim_loadfile(const char *file, int *anim_count);
+
+/* Updates the pose of a model to a specified frame of an animation */
+ATRA_API void atra_rawanim_updatemodel(ModelAnimRaw *anim, Model *model, float time, int offset);
+
+/* Updates the pose of a model to a specified frame of an animation
+ * Modifies given matrix array directly, storing resulting bone transforms within */
+ATRA_API void atra_rawanim_updatemodelext(ModelAnimRaw *anim, Model *model, float time);
+
+/* Deletes model animation data */
+ATRA_API void atra_rawanim_delete(ModelAnimRaw *anim);
+
+/* Deletes model animation array data */
+ATRA_API void atra_rawanim_deletearray(ModelAnimRaw *anims, int count);
+
+/* Returns 1 if the model animation skeleton is a match */
+ATRA_API int atra_rawanim_modelskeletonmatch(Model *model, ModelAnimRaw *anim);
 
 
 /*

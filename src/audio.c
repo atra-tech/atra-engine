@@ -25,19 +25,25 @@ static struct ALState {
     AudioDevice *in_device;
     AudioContext *context;
 
+    HashMap buffers;
+    HashMap buffer_paths;
+
     int send_max;               /* Number of auxiliary sends per source */
 
     int eax2_support;
     int efx_support;
 } audio;
 
-ATRA_INLINE void atra_audio_al_errorcheck(void);
+//ATRA_INLINE void atra_audio_al_errorcheck(void);
 
 ATRA_INLINE void atra_audio_loadoutputdevicenames(void); 
 ATRA_INLINE void atra_audio_loadinputdevicenames(void);
 ATRA_INLINE void atra_audio_loaddefaultdevices(void);
 
 ATRA_INLINE void atra_audio_efx_loadfunctions(void);
+
+ATRA_INLINE size_t atra_audio_buffer_hash(const void *);
+ATRA_INLINE int atra_audio_buffer_eq(const void *, const void *);
 
 LPALGENEFFECTS atra_al_geneffects = NULL;
 LPALDELETEEFFECTS atra_al_deleteeffects = NULL;
@@ -91,6 +97,8 @@ atra_audio_init(void)
     /* Initialise context */
     context = alcCreateContext(audio.out_device, NULL);
     alcMakeContextCurrent(context);
+    audio.buffers = atra_hashmap_create(sizeof(uint), sizeof(AudioBuffer), atra_audio_buffer_hash, atra_audio_buffer_eq);
+    audio.buffer_paths = atra_hashmap_create(sizeof(char *), sizeof(uint), atra_hashmap_str_hash, atra_hashmap_str_eq);
 
     /* Check for EAX 2.0 support */
     audio.eax2_support = alIsExtensionPresent("EAX2.0");
@@ -133,6 +141,9 @@ atra_audio_stop(void)
     if (audio.in_device != NULL) {
         atra_audio_device_close(audio.in_device);
     }
+
+    atra_hashmap_delete(&audio.buffers, 0);
+    atra_hashmap_delete(&audio.buffer_paths, HASH_FREE_KEY);
 }
 
 /* Populates the audio subsystem output device name list */
@@ -247,14 +258,15 @@ atra_audio_device_close(AudioDevice *device)
 
 /* Create and initialise a new audio buffer */
 ATRA_API
-AudioBuffer
+AudioBuffer *
 atra_audio_buffer_create(void)
 {
     AudioBuffer buffer = {0};
 
     alGenBuffers(1, &buffer.id);
-
-    return buffer;
+    atra_hashmap_add(&audio.buffers, &buffer.id, &buffer);
+    
+    return atra_hashmap_get(&audio.buffers, &buffer.id);
 }
 
 /* Delete an audio buffer and it's associated audio data */
@@ -262,7 +274,12 @@ ATRA_API
 void
 atra_audio_buffer_delete(AudioBuffer *buf)
 {
+    uint id = buf->id;
+
     alDeleteBuffers(1, &buf->id);
+    atra_hashmap_remove(&audio.buffers, &id, 0);
+    atra_hashmap_remove(&audio.buffer_paths, &buf->file_path, HASH_FREE_KEY);
+    free(buf->file_path);
 }
 
 /* Load the given file into a buffer */
@@ -270,6 +287,7 @@ ATRA_API
 void atra_audio_buffer_loadfile(AudioBuffer *buf, const char *path)
 {
     SDL_AudioSpec spec;
+    char *key;
     u8 *buffer;
     uint format;
     uint size;
@@ -310,6 +328,10 @@ void atra_audio_buffer_loadfile(AudioBuffer *buf, const char *path)
     }
     alBufferData(buf->id, format, buffer, size, spec.freq);
     SDL_FreeWAV(buffer);
+
+    key = atra_util_strdup(path);
+    buf->file_path = atra_util_strdup(key);
+    atra_hashmap_add(&audio.buffer_paths, &key, &buf->id);
 }
 
 /* Load raw PCM data into the given buffer */
@@ -318,6 +340,36 @@ void
 atra_audio_buffer_loadrawdata(AudioBuffer *buf, uint format, const void *data, size_t size, uint freq)
 {
     alBufferData(buf->id, format, data, size, freq);
+}
+
+/* Retrieve an audio buffer by its ID */
+ATRA_API
+AudioBuffer *
+atra_audio_buffer_get(uint id)
+{
+    return atra_hashmap_get(&audio.buffers, &id);
+}
+
+/* Retrieve an audio buffer's ID by it's data file path */
+ATRA_API
+uint
+atra_audio_buffer_getid_bypath(const char *path)
+{
+    AudioBuffer *buffer;
+    uint *p_id;
+    uint id;
+
+    p_id = atra_hashmap_get(&audio.buffer_paths, &path);
+    
+    if (p_id == NULL) {
+        buffer = atra_audio_buffer_create();
+        atra_audio_buffer_loadfile(buffer, path);
+        id = buffer->id;
+    } else {
+        id = *p_id;
+    }
+
+    return id;
 }
 
 ATRA_API
@@ -805,6 +857,27 @@ atra_audio_efx_loadfunctions(void)
 }
 
 ATRA_INLINE
+size_t
+atra_audio_buffer_hash(const void *a)
+{
+    const uint * const id = a;
+    size_t hash = *id;
+
+    return hash; 
+}
+
+ATRA_INLINE
+int
+atra_audio_buffer_eq(const void *a, const void *b)
+{
+    const uint * const id_a = a;
+    const uint * const id_b = b;
+
+    return (*id_a == *id_b);
+}
+
+/*
+ATRA_INLINE
 void
 atra_audio_al_errorcheck(void)
 {
@@ -833,3 +906,4 @@ atra_audio_al_errorcheck(void)
         }
     }
 }
+*/

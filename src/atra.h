@@ -29,7 +29,6 @@
 #include "network.h"
 #include "physics.h"
 #include "texture.h"
-#include "utf.h"
 #include "log.h"
 
 #endif /* ATRA_ENGINE_H */

@@ -33,7 +33,7 @@ const char *gl_source_str[] = {
 static RenderBatch *current_batch = {0};
 static RenderBatch default_batch = {0};
 static GLExtSupport gl_ext_support = {0};
-static GLLimits gl_limits = {0};
+//static GLLimits gl_limits = {0};
 static GLState gl_state = {0};
 
 /*
@@ -46,6 +46,10 @@ GLAPIENTRY
 MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
         GLsizei length, const GLchar *message, const void *user_param)
 {
+    ATRA_UNUSED(id);
+    ATRA_UNUSED(length);
+    ATRA_UNUSED(user_param);
+
     type -= GL_DEBUG_TYPE_ERROR;
     source -= GL_DEBUG_SOURCE_API;
 
@@ -110,8 +114,8 @@ atra_gl_init(int width, int height)
     gl_state.fbuffer_width = width;
     gl_state.fbuffer_height = height;
 
-    //glEnable(GL_DEBUG_OUTPUT);
-    //glDebugMessageCallbackARB(MessageCallback, NULL);
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallbackARB(MessageCallback, NULL);
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClearDepth(1.0f);
@@ -133,6 +137,7 @@ ATRA_API
 int
 atra_gl_getversion(void)
 {
+    return 0;
 }
 
 /* Runs checks to find which OpenGL features are available */
@@ -1348,12 +1353,12 @@ atra_gl_tex_createdepth(int width, int height, int use_rbuffer)
         glGenTextures(1, &tex_id);
         glBindTexture(GL_TEXTURE_2D, tex_id);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0,
-                GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, NULL);
+                GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
         
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
         
         glBindTexture(GL_TEXTURE_2D, 0);
     } else {
@@ -1709,10 +1714,15 @@ atra_gl_fbo_iscomplete(uint fbo_id)
         switch (status) {
         case GL_FRAMEBUFFER_UNSUPPORTED:
             atra_log_print(LOG_WARN, "gl: fbo: framebuffer unsupported");
+            break;
         case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
             atra_log_print(LOG_WARN, "gl: fbo: framebuffer has incomplete attachment");
+            break;
         case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
             atra_log_print(LOG_WARN, "gl: fbo: framebuffer has a missing attachment");
+            break;
+        default:
+            break;
         }
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -1869,8 +1879,10 @@ atra_gl_shader_compile(const char *code, int type)
         switch (type) {
         case GL_VERTEX_SHADER:
             atra_log_print(LOG_ERROR, "shader: vertex shader [%d] failed to compile", shader);
+            break;
         case GL_FRAGMENT_SHADER:
             atra_log_print(LOG_ERROR, "shader: fragment shader [%d] failed to compile", shader);
+            break;
         default:
             break;
         }
@@ -2034,15 +2046,24 @@ atra_gl_shader_setattrib(int loc, const void *data, int type, int count)
 {
     switch (type) {
     case ATRA_SHADER_ATTRIB_FLOAT:
-        if (count == 1) glVertexAttrib1fv(loc, data); break;
+        if (count == 1)
+            glVertexAttrib1fv(loc, data);
+        break;
     case ATRA_SHADER_ATTRIB_VEC2:
-        if (count == 2) glVertexAttrib2fv(loc, data); break;
+        if (count == 2)
+            glVertexAttrib2fv(loc, data);
+        break;
     case ATRA_SHADER_ATTRIB_VEC3:
-        if (count == 3) glVertexAttrib3fv(loc, data); break;
+        if (count == 3)
+            glVertexAttrib3fv(loc, data);
+        break;
     case ATRA_SHADER_ATTRIB_VEC4:
-        if (count == 4) glVertexAttrib4fv(loc, data); break;
+        if (count == 4)
+            glVertexAttrib4fv(loc, data);
+        break;
     default:
         atra_log_print(LOG_WARN, "gl: shader: invalid attribute data type");
+        break;
     }
 }
 
@@ -2134,12 +2155,30 @@ void
 atra_gl_enablebackfaceculling(void)
 {
     glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 }
 
 /* Disables culling of polygons which face away from the camera */
 ATRA_API
 void
 atra_gl_disablebackfaceculling(void)
+{
+    glDisable(GL_CULL_FACE);
+}
+
+/* Enables culling of polygons which face the camera */
+ATRA_API
+void
+atra_gl_enablefrontfaceculling(void)
+{
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+}
+
+/* Disables culling of polygons which face the camera */
+ATRA_API
+void
+atra_gl_disablefrontfaceculling(void)
 {
     glDisable(GL_CULL_FACE);
 }

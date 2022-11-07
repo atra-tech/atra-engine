@@ -10,6 +10,7 @@
 #include <math.h>
 
 #include "atra.h"
+#include "font.h"
 #include "stb/stb_truetype.h"
 
 /* Common UTF-8 character ranges */
@@ -61,11 +62,11 @@ atra_font_loadfile(const char *path, int font_size, int *chars, int count)
         /* Load image file */
         const Color key_color = {1.0f, 1.0f, 1.0f, 1.0f};
 
-        Image atlas = atra_image_loadfile(path);
+        Option_Image atlas = atra_image_loadfile(path);
 
-        if (atlas.data != NULL) {
-            font = atra_font_loadimage(&atlas, key_color, ATRA_FONT_DEFAULT_GLYPHCOUNT);
-            atra_image_destroy(&atlas);
+        if (atlas.some.data != NULL) {
+            font = atra_font_loadimage(&atlas.some, key_color, ATRA_FONT_DEFAULT_GLYPHCOUNT);
+            atra_image_destroy(&atlas.some);
         }
     }
 
@@ -74,7 +75,6 @@ atra_font_loadfile(const char *path, int font_size, int *chars, int count)
     } else {
         atra_texture_samplebase(&font.texture, ATRA_SAMPLE_NEAREST);
     }
-
     return font;
 }
 
@@ -990,3 +990,4 @@ atra_font_drawcodepoint_mesh(const Font *font, int codepoint, float x, float y, 
     atra_mesh_color4ub(color.r, color.g, color.b, color.a);
     atra_mesh_color4ub(color.r, color.g, color.b, color.a);
 }
+

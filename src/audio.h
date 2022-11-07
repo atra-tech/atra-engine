@@ -170,7 +170,8 @@ typedef ALCcontext AudioContext;
  */
 typedef struct AudioBuffer {
     uint id;                /* OpenAL buffer object ID */
-    
+    char *file_path;        /* Path to the buffer data file */
+
     uint frequency;         /* Frequency of the buffer in hertz */
     uint bit_depth;         /* Bit depth of buffer */
     uint channels;          /* Number of channels (must be 1 for sound positioning) */
@@ -237,8 +238,8 @@ ATRA_API int atra_audio_device_close(AudioDevice *device);
 
 /* Audio buffer functions */
 
-/* Create and initialise a new audio buffer */
-ATRA_API AudioBuffer atra_audio_buffer_create(void);
+/* Create and initialise a new audio buffer.  Buffers are managed by internal database */
+ATRA_API AudioBuffer * atra_audio_buffer_create(void);
 
 /* Delete an audio buffer and it's associated audio data */
 ATRA_API void atra_audio_buffer_delete(AudioBuffer *buf);
@@ -249,6 +250,13 @@ ATRA_API void atra_audio_buffer_loadfile(AudioBuffer *buf, const char *path);
 /* Load raw PCM data into the given buffer */
 ATRA_API void atra_audio_buffer_loadrawdata(AudioBuffer *buf, uint format,
         const void *data, size_t size, uint freq);
+
+/* Retrieve an audio buffer by its ID */
+ATRA_API AudioBuffer * atra_audio_buffer_get(uint id);
+
+/* Retrieve an audio buffer's ID by it's data file path.
+ * Implicitly loads new buffer at given path if no matching buffer exists */
+ATRA_API uint atra_audio_buffer_getid_bypath(const char *path);
 
 ATRA_API void atra_al_buffer_i(AudioBuffer *buf, int param, const int value);
 ATRA_API void atra_al_buffer_iv(AudioBuffer *buf, int param, const int *values);

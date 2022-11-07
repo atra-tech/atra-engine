@@ -61,7 +61,9 @@ ATRA_API
 void
 atra_state_update(void)
 {
-    state_stack[stack_size - 1].update(atra_time_getdelta());
+    u32 time = atra_time_getdelta();
+    atra_gui_update(time);
+    state_stack[stack_size - 1].update(time);
 }
 
 /* Calls the render function of the current state */
@@ -70,6 +72,7 @@ void
 atra_state_render(void)
 {
     state_stack[stack_size - 1].render();
+    atra_gui_render();
     atra_window_swapbuffers();
 }
 
@@ -78,12 +81,19 @@ ATRA_API
 void
 atra_state_pop(void)
 {
-    if (state_stack[stack_size - 1].stop) {
-        state_stack[stack_size - 1].stop();
+    const uint s_size = stack_size;
+
+    if (stack_size <= 0) {
+        atra_engine_stop();
+        return;
+    }
+
+    if (state_stack[s_size - 1].stop != NULL) {
+        state_stack[s_size - 1].stop();
     }
     stack_size--;
 
-    if (stack_size <= 0) {
+    if (s_size <= 0) {
         atra_engine_stop();
     }
 }
@@ -101,11 +111,13 @@ ATRA_API
 void
 atra_state_stop(void)
 {
-    int i;
+    const uint s_size = stack_size;
+    uint i;
 
-    for (i = stack_size - 1; i >= 0; i--) {
-        if (state_stack[i].stop) {
-            state_stack[i].stop();
+    //for (i = stack_size - 1; i >= 0; i--) {
+    for (i = 1; i <= s_size; i++) {
+        if (state_stack[s_size - i].stop != NULL) {
+            state_stack[s_size - i].stop();
         }
     }
     stack_size = 0;

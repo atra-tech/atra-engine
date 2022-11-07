@@ -442,7 +442,7 @@ ATRA_API void atra_window_setminsize(int w, int h);
 ATRA_API void atra_window_setsize(int w, int h);
 
 /* Set viewport for a given width and height */
-ATRA_API void atra_window_setupviewport(int width, int height);
+ATRA_API void atra_window_setupviewport(void);
 
 /* Returns a pointer to the window handle */
 ATRA_API void * atra_window_gethandle(void);

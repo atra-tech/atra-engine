@@ -39,6 +39,7 @@ ATRA_INLINE Image atra_gltf_loadimage(cgltf_image *image, const char *tex_path, 
 ATRA_INLINE void atra_gltf_loadmaterial(Model *model, const char *path, const cgltf_data *data);
 ATRA_INLINE void atra_gltf_bindprimstobones(Model *model, const cgltf_data *data, int prim_index);
 ATRA_INLINE ModelAnim * atra_gltf_loadmodelanims(const char *path, int *anim_count);
+ATRA_INLINE ModelAnimRaw * atra_gltf_loadmodelanimsraw(const char *path, int *anim_count);
 ATRA_INLINE void atra_gltf_loadmesh(cgltf_data *data, cgltf_mesh *mesh, Model *out_model,
         mat4 curr_transform, int *prim_index, const char *path);
 static void atra_gltf_loadnode(cgltf_data *data, cgltf_node *node, Model *out_model,
@@ -48,9 +49,13 @@ ATRA_INLINE int atra_gltf_readvalue(cgltf_accessor *acc, uint index, void *varia
 ATRA_INLINE void * atra_gltf_readvalueas(cgltf_accessor *acc, cgltf_component_type type, int adjust_on_down_casting);
 ATRA_INLINE void atra_gltf_getnodetransform(cgltf_node *node, mat4 current, vec4 *dest);
 
+ATRA_INLINE void atra_mat4_make_transrot(vec3 trans, versor rot, mat4 dest);
+ATRA_INLINE void atra_log_printmatrix(mat4 m);
+
 ATRA_INLINE int atra_base64_getsize(char *in);
 ATRA_INLINE uchar * atra_base64_decode(char *in, int *size);
 
+ATRA_INLINE void atra_mesh_growbuffers(void);
 
 /*
  *  Model functions
@@ -59,17 +64,17 @@ ATRA_INLINE uchar * atra_base64_decode(char *in, int *size);
 /* Returns a new model from model data from a file (GLTF) */
 ATRA_API
 Model
-atra_model_loadfile(const char *path)
+atra_model_loadfile(const char *path, int auto_upload)
 {
     Model model = {0};
     int i;
 
-    //if (atra_util_filehasext(path, ".gltf;.glb")) {
+    if (atra_util_filehasext(path, ".gltf;.glb")) {
         model = atra_gltf_load(path);
-    /*} else {
+    } else {
         atra_log_print(LOG_WARN, "model: Unable to load model file %s: " \
                 "Unrecognised model file format.", path);
-    }*/
+    }
 
     glm_mat4_identity(model.transform);
 
@@ -81,8 +86,10 @@ atra_model_loadfile(const char *path)
 
         atra_log_print(LOG_WARN, "model: Failed to load mesh data from model file: %s", path);
     } else {
-        for (i = 0; i < model.mesh_count; i++) {
-            atra_mesh_upload(model.meshes, 0);
+        if (auto_upload) {
+            for (i = 0; i < model.mesh_count; i++) {
+                atra_mesh_upload(model.meshes, 0);
+            }
         }
     }
 
@@ -136,11 +143,18 @@ atra_model_delete(Model *model)
         atra_mesh_delete(model->meshes + i);
     }
     free(model->meshes);
+
+    for (i = 0; i < model->material_count; i++) {
+        atra_material_delete(model->materials + i);
+    }
     free(model->materials);
     free(model->mesh_materials);
 
     free(model->bones);
     free(model->bind_pose);
+    free(model->invbind_mats);
+    free(model->world_mats);
+    free(model->bone_mats);
 }
 
 /* Deletes a model but leaves the meshes allocated */
@@ -154,6 +168,9 @@ atra_model_meshlessdelete(Model *model)
 
     free(model->bones);
     free(model->bind_pose);
+    free(model->invbind_mats);
+    free(model->world_mats);
+    free(model->bone_mats);
 }
 
 /* Sets the material for a model's mesh */
@@ -201,6 +218,64 @@ atra_model_drawext(Model *model, vec3 pos, vec3 rot_axis,
     glm_mat4_mul(transform, model->transform, model->transform);
 
     for (i = 0; i < model->mesh_count; i++) {
+        Material *mat = &model->materials[model->mesh_materials[i]];
+        Color color = mat->maps[ATRA_TEXTURE_ALBEDO].color;
+        Color color_tint;
+
+        color_tint.r = (((color.r / 255.0f) * (tint.r / 255.0f)) * 255.0f);
+        color_tint.g = (((color.g / 255.0f) * (tint.g / 255.0f)) * 255.0f);
+        color_tint.b = (((color.b / 255.0f) * (tint.b / 255.0f)) * 255.0f);
+        color_tint.a = (((color.a / 255.0f) * (tint.a / 255.0f)) * 255.0f);
+    
+        atra_shader_setactive(&mat->shader);
+
+        /* TODO: Add animation bone matrix uniform push here */
+        if (mat->shader.locs[ATRA_SHADER_LOC_M_BONES] != -1) {
+            atra_shader_setuniform(mat->shader.locs[ATRA_SHADER_LOC_M_BONES],
+                    model->bone_mats, ATRA_SHADER_UNIFORM_MAT4, model->bone_count);
+        }
+
+        mat->maps[ATRA_TEXTURE_ALBEDO].color = color_tint;
+        atra_mesh_draw(model->meshes + i, model->materials + model->mesh_materials[i], model->transform);
+        mat->maps[ATRA_TEXTURE_ALBEDO].color = color;
+    }
+}
+
+/* Instance renders a model to the screen */
+ATRA_API
+void
+atra_model_draw_instanced(Model *model, uint inst_count, vec3 pos, float scale,
+        Color tint, mat4 *transforms)
+{
+    vec3 scale_vec = {scale, scale, scale};
+    vec3 rot_axis = {0.0f, 1.0f, 0.0f};
+
+    atra_model_drawext_instanced(model, inst_count, pos, rot_axis, 0.0f,
+            scale_vec, tint, transforms);
+}
+
+/* Instance renders a model to the screen (extended parameters) */
+ATRA_API
+void
+atra_model_drawext_instanced(Model *model, uint inst_count, vec3 pos,
+        vec3 rot_axis, float rot_angle, vec3 scale, Color tint, mat4 *transforms)
+{
+    mat4 trans_mat, rot_mat, scale_mat;
+    mat4 transform;
+    int i;
+
+    glm_translate_make(trans_mat, pos);
+    glm_rotate_make(rot_mat, rot_angle, rot_axis);
+    glm_scale_make(scale_mat, scale);
+
+    glm_mat4_mul(trans_mat, rot_mat, transform);
+    glm_mat4_mul(transform, scale_mat, transform);
+
+    glm_mat4_mul(transform, model->transform, model->transform);
+
+    /* TODO: Either integrate or remove `transform` into instance renders */
+
+    for (i = 0; i < model->mesh_count; i++) {
         Color color = model->materials[model->mesh_materials[i]].maps[ATRA_TEXTURE_ALBEDO].color;
         Color color_tint;
 
@@ -210,10 +285,12 @@ atra_model_drawext(Model *model, vec3 pos, vec3 rot_axis,
         color_tint.a = (((color.a / 255.0f) * (tint.a / 255.0f)) * 255.0f);
 
         model->materials[model->mesh_materials[i]].maps[ATRA_TEXTURE_ALBEDO].color = color_tint;
-        atra_mesh_draw(model->meshes + i, model->materials + model->mesh_materials[i], model->transform);
+        atra_mesh_drawinstanced(model->meshes + i, model->materials + model->mesh_materials[i], transforms,
+                inst_count, model->bone_mats, model->bone_count);
         model->materials[model->mesh_materials[i]].maps[ATRA_TEXTURE_ALBEDO].color = color;
     }
 }
+
 
 /* Renders a model wireframe to the screen */
 ATRA_API
@@ -331,7 +408,7 @@ atra_mesh_end(int dynamic)
 /* Doubles the size of the vertex buffers of the currently active mesh */
 ATRA_INLINE
 void
-atra_mesh_growbuffers()
+atra_mesh_growbuffers(void)
 {
     int new_limit, new_size;
     
@@ -357,7 +434,6 @@ atra_mesh_growbuffers()
         curr_mesh->uvs2 = realloc(curr_mesh->uvs2, new_size * 3 * sizeof(float));
     }
     curr_mesh->im->limit = new_limit;
-
 }
 
 /* Adds a vertex to the current mesh */
@@ -565,7 +641,7 @@ atra_mesh_upload(Mesh *mesh, int dynamic)
 
     if (mesh->norms != NULL) {
         /* Enable vertex normals attribute */
-        norms = mesh->anim_norms != NULL ? mesh->anim_norms : mesh->anim_norms;
+        norms = mesh->anim_norms != NULL ? mesh->anim_norms : mesh->norms;
         mesh->vbo_ids[2] = atra_gl_vbo_create(norms,
                 mesh->vert_count * 3 * sizeof(float), dynamic);
         atra_gl_vao_setattrib(2, 3, ATRA_FLOAT, 0, 0, NULL);
@@ -593,13 +669,13 @@ atra_mesh_upload(Mesh *mesh, int dynamic)
     if (mesh->tangents != NULL) {
         /* Enable vertex tangents attribute */
         mesh->vbo_ids[4] = atra_gl_vbo_create(mesh->tangents,
-                mesh->vert_count * 4 * sizeof(float), dynamic);
-        atra_gl_vao_setattrib(4, 4, ATRA_FLOAT, 0, 0, NULL);
+                mesh->vert_count * 3 * sizeof(float), dynamic);
+        atra_gl_vao_setattrib(4, 3, ATRA_FLOAT, 0, 0, NULL);
         atra_gl_vao_enableattrib(4);
     } else {
         /* Set tangents attribute to default value */
-        const vec4 value = {0.0f, 0.0f, 0.0f, 0.0f};
-        atra_gl_vao_setattribdefault(4, value, ATRA_SHADER_ATTRIB_VEC4, 4);
+        const vec4 value = {0.0f, 0.0f, 0.0f};
+        atra_gl_vao_setattribdefault(4, value, ATRA_SHADER_ATTRIB_VEC3, 4);
         atra_gl_vao_disableattrib(4);
     }
 
@@ -616,8 +692,20 @@ atra_mesh_upload(Mesh *mesh, int dynamic)
         atra_gl_vao_disableattrib(5);
     }
 
+    if (mesh->bone_ids != NULL && mesh->bone_weights != NULL) {
+        /* Enable bone VBOs */
+        mesh->vbo_ids[6] = atra_gl_vbo_create(
+                mesh->bone_ids, mesh->vert_count * 4 * sizeof(float), 1);
+        atra_gl_vao_setattrib(6, 4, ATRA_FLOAT, 0, 0, NULL);
+        atra_gl_vao_enableattrib(6);
+        mesh->vbo_ids[7] = atra_gl_vbo_create(
+                mesh->bone_weights, mesh->vert_count * 4 * sizeof(float), 1);
+        atra_gl_vao_setattrib(7, 4, ATRA_FLOAT, 0, 0, NULL);
+        atra_gl_vao_enableattrib(7);
+    }
+
     if (mesh->indices != NULL) {
-        mesh->vbo_ids[6] = atra_gl_ebo_create(mesh->indices,
+        mesh->vbo_ids[8] = atra_gl_ebo_create(mesh->indices,
                 mesh->tri_count * 3 * sizeof(uint), dynamic);
     }
 
@@ -670,7 +758,7 @@ atra_mesh_draw(Mesh *mesh, Material *mat, mat4 transform)
             (float)mat->maps[ATRA_TEXTURE_SPECULAR].color.r / 255.0f,
             (float)mat->maps[ATRA_TEXTURE_SPECULAR].color.g / 255.0f,
             (float)mat->maps[ATRA_TEXTURE_SPECULAR].color.b / 255.0f,
-            (float)mat->maps[ATRA_TEXTURE_SPECULAR].color.a / 255.0f,
+            (float)mat->maps[ATRA_TEXTURE_SPECULAR].color.a / 255.0f
         };
         atra_shader_setuniform(
                 mat->shader.locs[ATRA_SHADER_LOC_COLOR_SPECULAR],
@@ -707,6 +795,7 @@ atra_mesh_draw(Mesh *mesh, Material *mat, mat4 transform)
                 normal, ATRA_SHADER_UNIFORM_MAT4, 1);
     }
 
+    
     /* Bind all available texture maps */
     for (i = 0; i < ATRA_TEXTURE_TOTAL; i++) {
         if (mat->maps[i].tex.id > 0) {
@@ -724,11 +813,10 @@ atra_mesh_draw(Mesh *mesh, Material *mat, mat4 transform)
                     mat->shader.locs[ATRA_SHADER_LOC_TEX_ALBEDO + i],
                     &i, ATRA_SHADER_UNIFORM_INT, 1);
         }
-
     }
 
     /* Bind VAO/VBOs */
-    if (atra_gl_vao_enable(mesh->vao_id)) {
+    if (atra_gl_vao_enable(mesh->vao_id) != 0) {
         /* Bind vertex position */
         atra_gl_vbo_enable(mesh->vbo_ids[0]);
         atra_gl_vao_setattrib(mat->shader.locs[ATRA_SHADER_LOC_V_POSITION],
@@ -768,7 +856,7 @@ atra_mesh_draw(Mesh *mesh, Material *mat, mat4 transform)
         if (mat->shader.locs[ATRA_SHADER_LOC_V_TANGENT] != -1) {
             atra_gl_vbo_enable(mesh->vbo_ids[4]);
             atra_gl_vao_setattrib(mat->shader.locs[ATRA_SHADER_LOC_V_TANGENT],
-                    4, ATRA_FLOAT, 0, 0, NULL);
+                    3, ATRA_FLOAT, 0, 0, NULL);
             atra_gl_vao_enableattrib(mat->shader.locs[ATRA_SHADER_LOC_V_TANGENT]);
         }
 
@@ -781,7 +869,7 @@ atra_mesh_draw(Mesh *mesh, Material *mat, mat4 transform)
         }
 
         if (mesh->indices != NULL) {
-            atra_gl_ebo_enable(mesh->vbo_ids[6]);
+            atra_gl_ebo_enable(mesh->vbo_ids[8]);
         }
     }
     glm_mat4_mul(proj, modelview, mvp);
@@ -829,13 +917,14 @@ atra_mesh_draw(Mesh *mesh, Material *mat, mat4 transform)
 /* Instance renders a mesh with a single material and different transforms */
 ATRA_API
 void
-atra_mesh_drawinstanced(Mesh *mesh, Material *mat, mat4 *transforms, int count)
+atra_mesh_drawinstanced(Mesh *mesh, Material *mat, mat4 *transforms, int count,
+        float *bone_transforms, uint bone_count)
 {
     ATRA_UNUSED(transforms);
 
-    mat4 model, view, proj, modelview, normal, mvp, gl_transform;
+    mat4 view, proj, modelview, normal, mvp, gl_transform;
     //uint instance_vboid = 0;
-    int i;
+    uint i;
 
     atra_shader_setactive(&mat->shader);
 
@@ -881,21 +970,31 @@ atra_mesh_drawinstanced(Mesh *mesh, Material *mat, mat4 *transforms, int count)
 
     atra_gl_vao_enable(mesh->vao_id);
     //instance_vboid = atra_gl_vbo_create(transforms, count * sizeof(float), 0);
+    
+    if (bone_transforms != NULL) {
+        atra_shader_setuniform(mat->shader.locs[ATRA_SHADER_LOC_M_BONES],
+                bone_transforms, ATRA_SHADER_UNIFORM_MAT4, bone_count);
+    }
 
+    if (mesh->vbo_ids[ATRA_SHADER_LOC_M_MODEL] == 0) {
+        mesh->vbo_ids[ATRA_SHADER_LOC_M_MODEL] = atra_gl_vbo_create(transforms, count * 16 * sizeof(float), 1);
+    } else {
+        atra_gl_vbo_overwrite(mesh->vbo_ids[ATRA_SHADER_LOC_M_MODEL], transforms, count * 16 * sizeof(float), 1);
+    }
     for (i = 0; i < 4; i++) {
         atra_gl_vao_enableattrib(mat->shader.locs[ATRA_SHADER_LOC_M_MODEL] + i);
         atra_gl_vao_setattrib(mat->shader.locs[ATRA_SHADER_LOC_M_MODEL] + i,
                 4, ATRA_FLOAT, 0, sizeof(mat4), (void *)(i * sizeof(vec4)));
         atra_gl_vao_setattribdivisor(mat->shader.locs[ATRA_SHADER_LOC_M_MODEL] + i, 1);
     }
-    atra_gl_vbo_disable();
-    atra_gl_vao_disable();
+    //atra_gl_vbo_disable();
+    //atra_gl_vao_disable();
 
     atra_gl_matrix_gettransform(gl_transform);
     glm_mat4_mul(view, gl_transform, modelview);
 
     if (mat->shader.locs[ATRA_SHADER_LOC_M_NORMAL] != -1) {
-        glm_mat4_inv(model, normal);
+        glm_mat4_inv(gl_transform, normal);
         glm_mat4_transpose(normal);
         atra_shader_setuniform(mat->shader.locs[ATRA_SHADER_LOC_M_NORMAL],
                 normal, ATRA_SHADER_UNIFORM_MAT4, 1);
@@ -913,7 +1012,6 @@ atra_mesh_drawinstanced(Mesh *mesh, Material *mat, mat4 *transforms, int count)
             } else {
                 atra_gl_tex_enable(mat->maps[i].tex.id);
             }
-
             atra_shader_setuniform(
                     mat->shader.locs[ATRA_SHADER_LOC_TEX_ALBEDO + i],
                     &i, ATRA_SHADER_UNIFORM_INT, 1);
@@ -921,7 +1019,7 @@ atra_mesh_drawinstanced(Mesh *mesh, Material *mat, mat4 *transforms, int count)
     }
 
     /* Bind VAO/VBOs */
-    if (atra_gl_vao_enable(mesh->vao_id)) {
+    if (atra_gl_vao_enable(mesh->vao_id) != 0) {
         /* Bind vertex position */
         atra_gl_vbo_enable(mesh->vbo_ids[0]);
         atra_gl_vao_setattrib(mat->shader.locs[ATRA_SHADER_LOC_V_POSITION],
@@ -973,9 +1071,26 @@ atra_mesh_drawinstanced(Mesh *mesh, Material *mat, mat4 *transforms, int count)
             atra_gl_vao_enableattrib(mat->shader.locs[ATRA_SHADER_LOC_V_TEXCOORD2]);
         }
 
-        if (mesh->indices != NULL) {
-            atra_gl_ebo_enable(mesh->vbo_ids[6]);
+        /* Bind vertex bone IDs */
+        if (mat->shader.locs[ATRA_SHADER_LOC_V_BONEIDS] != -1) {
+            atra_gl_vbo_enable(mesh->vbo_ids[6]);
+            atra_gl_vao_setattrib(mat->shader.locs[ATRA_SHADER_LOC_V_BONEIDS],
+                    4, ATRA_INT, 0, 0, NULL);
+            atra_gl_vao_enableattrib(mat->shader.locs[ATRA_SHADER_LOC_V_BONEIDS]);
         }
+
+        /* Bind vertex bone weights */
+        if (mat->shader.locs[ATRA_SHADER_LOC_V_BONEWEIGHTS] != -1) {
+            atra_gl_vbo_enable(mesh->vbo_ids[7]);
+            atra_gl_vao_setattrib(mat->shader.locs[ATRA_SHADER_LOC_V_BONEWEIGHTS],
+                    4, ATRA_FLOAT, 0, 0, NULL);
+            atra_gl_vao_enableattrib(mat->shader.locs[ATRA_SHADER_LOC_V_BONEWEIGHTS]);
+        }
+
+        if (mesh->indices != NULL) {
+            atra_gl_ebo_enable(mesh->vbo_ids[8]);
+        }
+
     }
     glm_mat4_mul(proj, modelview, mvp);
     atra_gl_shader_setuniform(mat->shader.locs[ATRA_SHADER_LOC_M_MVP],
@@ -1018,7 +1133,7 @@ void
 atra_mesh_export(Mesh *mesh, const char *path)
 {
     ATRA_UNUSED(mesh);
-    ATRA_UNUSED(mesh);
+    ATRA_UNUSED(path);
 }
 
 /* Returns a new minimum bounding box for a mesh */
@@ -1026,7 +1141,11 @@ ATRA_API
 AABB
 atra_mesh_createaabb(Mesh *mesh)
 {
+    AABB box = {0};
+
     ATRA_UNUSED(mesh);
+
+    return box;
 }
 
 /* Calculates mesh tangents */
@@ -1034,15 +1153,49 @@ ATRA_API
 void
 atra_mesh_calctangents(Mesh *mesh)
 {
-    ATRA_UNUSED(mesh);
-}
+    const uint index_count = mesh->tri_count * 3;
+    const uint *indices = mesh->indices;
 
-/* Calculates mesh bitangents */
-ATRA_API
-void
-atra_mesh_calcbitangents(Mesh *mesh)
-{
-    ATRA_UNUSED(mesh);
+    float *verts = mesh->verts;
+    float *uvs = mesh->uvs;
+    float *tans = mesh->tangents;
+
+    uint i;
+
+    for (i = 0; i < index_count; i += 3) {
+        const uint idx1 = indices[i + 0];
+        const uint idx2 = indices[i + 1];
+        const uint idx3 = indices[i + 2];
+                        
+        float *pos1 = verts + (idx1 * 3);
+        float *pos2 = verts + (idx2 * 3);
+        float *pos3 = verts + (idx3 * 3);
+                        
+        float *uv1 = uvs + (idx1 * 2);
+        float *uv2 = uvs + (idx2 * 2);
+        float *uv3 = uvs + (idx3 * 2);
+                        
+        vec3 e1, e2;
+        vec2 d_uv1, d_uv2;
+                        
+        glm_vec3_sub(pos2, pos1, e1);
+        glm_vec3_sub(pos3, pos1, e2);
+        glm_vec2_sub(uv2, uv1, d_uv1);
+        glm_vec2_sub(uv3, uv1, d_uv2);
+                        
+        float f = 1.0f / (d_uv1[0] * d_uv2[1] - d_uv2[0] * d_uv1[1]);
+        vec3 tan;
+                        
+        tan[0] = f * (d_uv2[1] * e1[0] - d_uv1[1] * e2[0]);
+        tan[1] = f * (d_uv2[1] * e1[1] - d_uv1[1] * e2[1]);
+        tan[2] = f * (d_uv2[1] * e1[2] - d_uv1[1] * e2[2]);
+                        
+        glm_vec3_normalize(tan);
+                        
+        memcpy(tans + (idx1 * 3), tan, 3 * sizeof(float));
+        memcpy(tans + (idx2 * 3), tan, 3 * sizeof(float));
+        memcpy(tans + (idx3 * 3), tan, 3 * sizeof(float));
+    }
 }
 
 /* Computes a mesh from a heightmap image */
@@ -1050,8 +1203,12 @@ ATRA_API
 Mesh
 atra_mesh_loadheightmap(Image *heightmap, vec3 size)
 {
+    Mesh mesh = {0};
+
     ATRA_UNUSED(heightmap);
     ATRA_UNUSED(size);
+
+    return mesh;
 }
 
 
@@ -1095,6 +1252,7 @@ atra_material_loadfile(const char *path, int *mat_count)
     return materials;
 }
 
+
 /* Loads the default material (supports diffuse, specular and normal maps) */
 ATRA_API
 Material
@@ -1108,6 +1266,7 @@ atra_material_loaddefault(void)
 
     mat.maps[ATRA_TEXTURE_ALBEDO].tex = (Texture){atra_gl_tex_getdefaultid(),
             1, 1, 1, ATRA_SAMPLE_NEAREST, ATRA_SAMPLE_NEAREST};
+    
     
     mat.maps[ATRA_TEXTURE_ALBEDO].color = (Color){0xFF, 0xFF, 0xFF, 0xFF};
     mat.maps[ATRA_TEXTURE_SPECULAR].color = (Color){0xFF, 0xFF, 0xFF, 0xFF};
@@ -1217,8 +1376,8 @@ atra_anim_updatemodel(ModelAnim *anim, Model *model, int frame)
                     versor tmp_rot = {0};
 
                     glm_vec3_copy(model->meshes[m].verts + v_counter, anim_vert);
-                    glm_vec3_mul(anim_vert, out_scale, anim_vert);
                     glm_vec3_sub(anim_vert, in_trans, anim_vert);
+                    glm_vec3_mul(anim_vert, out_scale, anim_vert);
 
                     glm_quat_inv(in_rot, tmp_rot);
                     glm_quat_mul(out_rot, tmp_rot, tmp_rot);
@@ -1244,10 +1403,10 @@ atra_anim_updatemodel(ModelAnim *anim, Model *model, int frame)
             }
 
             /* Upload new vertex information to GPU */
-            atra_gl_vbo_update(model->meshes[m].vbo_ids[0], model->meshes->anim_verts,
-                    model->meshes[m].vert_count * 3 * sizeof(float), 0);
-            atra_gl_vbo_update(model->meshes[m].vbo_ids[2], model->meshes->anim_norms,
-                    model->meshes[m].vert_count * 3 * sizeof(float), 0);
+            atra_gl_vbo_update(model->meshes[m].vbo_ids[ATRA_SHADER_LOC_V_POSITION],
+                    model->meshes->anim_verts, model->meshes[m].vert_count * 3 * sizeof(float), 0);
+            atra_gl_vbo_update(model->meshes[m].vbo_ids[ATRA_SHADER_LOC_V_NORMAL],
+                    model->meshes->anim_norms, model->meshes[m].vert_count * 3 * sizeof(float), 0);
         }
     }
 }
@@ -1301,6 +1460,266 @@ atra_anim_modelskeletonmatch(Model *model, ModelAnim *anim)
     return result;
 }
 
+/* Loads an array of model animations from a file (GLTF) */
+ATRA_API
+ModelAnimRaw *
+atra_rawanim_loadfile(const char *file, int *anim_count)
+{
+    ModelAnimRaw *anim = NULL;
+
+    /*if (atra_util_filehasext(file, ".gltf;.glb")) {*/
+        anim = atra_gltf_loadmodelanimsraw(file, anim_count);
+    /*} else {
+        atra_log_print(LOG_WARN, "model: Unable to load model animations from model file %s: " \
+                "Unrecognised model file format", file);
+    }*/
+
+    return anim;
+}
+
+/* Updates the pose of a model, interpolating the resulting pose from the given time.
+ * Allows for offsetting to bone arrays of other instances */
+/*ATRA_API
+void
+atra_rawanim_updatemodel(ModelAnimRaw *anim, Model *model, float time, int offset)
+{
+    float *trans = model->curr_trans + offset * model->bone_count * 3;
+    float *rot = model->curr_rot + offset * model->bone_count * 4;
+    float *scale = model->curr_scale + offset * model->bone_count * 3;
+
+    atra_rawanim_updatemodelext(anim, model, time, trans, rot, scale);
+}*/
+
+/* Updates the pose of a model to a specified frame of an animation
+ * Modifies given transform pointers directly, rather than model internal transforms */
+ATRA_API
+void
+atra_rawanim_updatemodelext(ModelAnimRaw *anim, Model *model, float time)
+{
+    int i, bone;
+    uint start_frame = 0;
+    uint end_frame = 0;
+    float *trans_a, *trans_b;
+    float *rot_a, *rot_b;
+    float *scale_a, *scale_b;
+    vec3 trans_out;
+    versor rot_out;
+    vec3 scale_out;
+    float lerp_percent = 0.0f;
+
+    //time = (time > anim->duration) ? (time - (uint)(time / anim->duration) * anim->duration) : time;
+    while (time > anim->duration) {
+        time -= anim->duration;
+    }
+
+    for (i = 0; i < anim->frame_count; i++) {
+        start_frame = (i == 0) ? 0 : i - 1;
+        end_frame = i;
+        const float start_time = anim->frame_times[start_frame];
+        const float end_time = anim->frame_times[end_frame];
+
+        if (time < end_time) {
+            const float time_diff = end_time - start_time;
+
+            if (time_diff < 0.0f || time_diff > 0.0f) {
+                lerp_percent = (time - start_time) / time_diff;
+            }
+            break;
+        }
+    }
+
+    if (anim->frame_count > 0 &&
+            anim->bones != NULL &&
+            anim->frame_poses != NULL) {
+
+        /* Bake bind pose translation into mesh */
+        /*if (model->pose_init == 0) {
+            for (m = 0; m < model->mesh_count; m++) {
+                Mesh *mesh = &model->meshes[m];
+                int v_counter = 0;
+                int bone_counter = 0;
+                int bone_id = 0;
+                float bone_weight = 0.0f;
+                vec3 anim_vert = {0};
+
+                for (i = 0; i < model->meshes[m].vert_count; i++) {
+                    glm_vec3_zero(&mesh->anim_verts[v_counter]);
+
+                    for (j = 0; j < 4; j++, bone_counter++) {
+                        bone_weight = mesh->bone_weights[bone_counter];
+
+                        if (bone_weight == 0.0f) {
+                            continue;
+                        }
+                        bone_id = mesh->bone_ids[bone_counter];
+
+                        glm_vec3_sub(&mesh->verts[v_counter], model->bind_pose[bone_id].translation, anim_vert);
+                        glm_vec3_muladds(anim_vert, bone_weight, &mesh->anim_verts[v_counter]);
+                    }
+                    v_counter += 3;
+                }
+                atra_gl_vbo_update(model->meshes[m].vbo_ids[ATRA_SHADER_LOC_V_POSITION],
+                        model->meshes->anim_verts, model->meshes[m].vert_count * 3 * sizeof(float), 0);
+            }
+            model->pose_init = 1;
+        }*/
+
+
+        /* Initialise bind pose transform for each bone */
+        /*if (model->pose_init == FALSE) {
+
+            for (bone = 0; bone < model->bone_count; bone++) {
+                glm_scale_make(local_mat, model->bind_pose[bone].scale);
+                glm_quat_rotate(local_mat, model->bind_pose[bone].rotation);
+                glm_translate(local_mat, model->bind_pose);
+                
+                if (model->bones[bone].parent < 0) {
+                    glm_mat4_copy(local_mat, model->bone_tf[bone].world_mat);
+                }
+            }
+
+            model->pose_init = TRUE;
+        }*/
+/*
+    completed_bones = calloc(model->bone_count, sizeof(int));
+    completed_count = 0;
+    
+    vec4 *invbind, *world, *parent_world;
+    int parent;
+
+    while (completed_count < model->bone_count) {
+        for (i = 0; i < (uint)model->bone_count; i++) {
+            if (completed_bones[i]) {
+                continue;
+            }
+            parent = model->bones[i].parent;
+            parent = (parent < model->bone_count) ? parent : 0;
+            invbind = (vec4 *)(model->invbind_mats + i * 16);
+            world = (vec4 *)(model->world_mats + i * 16);
+
+            glm_scale_make(local_mat, model->bind_pose[i].scale);
+            glm_quat_rotate(local_mat, model->bind_pose[i].rotation, local_mat);
+            glm_translate(local_mat, model->bind_pose[i].translation);
+
+            if (parent < 0) {
+                glm_mat4_copy(local_mat, world);
+            } else if (completed_bones[parent] == 0) {
+                continue;
+            } else {
+                parent_world = (vec4 *)(model->invbind_mats + parent * 16);
+                glm_mat4_mul(parent_world, local_mat, world);
+            }
+
+            glm_mat4_inv(world, invbind);
+            completed_bones[i] = 1;
+            completed_count++;
+        }
+    }
+    free(completed_bones);
+*/
+        /* Calculate final transform for each bone */
+        int completed_bones[256] = {0};
+        int completed_count = 0;
+
+        vec4 *parent_world, *world, *invbind, *result;
+        mat4 local_mat;
+        int parent;
+
+        while (completed_count < model->bone_count) {
+            for (bone = 0; bone < model->bone_count; bone++) {
+                if (completed_bones[bone]) {
+                    continue;
+                }
+                parent = model->bones[bone].parent;
+                parent = (parent < model->bone_count) ? parent : 0;
+
+                invbind = (vec4 *)(model->invbind_mats + bone * 16);
+                result = (vec4 *)(model->bone_mats + bone * 16);
+                world = (vec4 *)(model->world_mats + bone * 16);
+
+                trans_a = anim->frame_poses[start_frame][bone].translation;
+                trans_b = anim->frame_poses[end_frame][bone].translation;
+                rot_a = anim->frame_poses[start_frame][bone].rotation;
+                rot_b = anim->frame_poses[end_frame][bone].rotation;
+                scale_a = anim->frame_poses[start_frame][bone].scale;
+                scale_b = anim->frame_poses[end_frame][bone].scale;
+
+                glm_vec3_lerp(trans_a, trans_b, lerp_percent, trans_out);
+                glm_quat_slerp(rot_a, rot_b, lerp_percent, rot_out);
+                glm_vec3_lerp(scale_a, scale_b, lerp_percent, scale_out);
+
+                glm_translate_make(local_mat, trans_out);
+                glm_quat_rotate(local_mat, rot_out, local_mat);
+                glm_scale(local_mat, scale_out);
+
+                if (parent < 0) {
+                    glm_mat4_copy(local_mat, world);
+                } else if (completed_bones[parent] == 0) {
+                    continue;
+                } else {
+                    parent_world = (vec4 *)(model->world_mats + parent * 16);
+                    glm_mat4_mul(parent_world, local_mat, world);
+                }
+                glm_mat4_mul(world, invbind, result);
+
+                completed_bones[bone] = 1;
+                completed_count++;
+            }
+        }
+    }
+}
+
+
+/* Deletes model animation data */
+ATRA_API
+void
+atra_rawanim_delete(ModelAnimRaw *anim)
+{
+    int i;
+
+    for (i = 0; i < anim->frame_count; i++) {
+        free(anim->frame_poses[i]);
+    }
+    free(anim->frame_times);
+    free(anim->frame_poses);
+    free(anim->bones);
+}
+
+/* Deletes model animation array data */
+ATRA_API
+void
+atra_rawanim_deletearray(ModelAnimRaw *anims, int count)
+{
+    int i;
+
+    for (i = 0; i < count; i++) {
+        atra_rawanim_delete(anims + i);
+    }
+    free(anims);
+}
+
+/* Returns 1 if the model animation skeleton is a match */
+ATRA_API
+int
+atra_rawanim_modelskeletonmatch(Model *model, ModelAnimRaw *anim)
+{
+    int result = 1;
+    int i;
+
+    if (model->bone_count != anim->bone_count) {
+        result = 0;
+    } else {
+        for (i = 0; i < model->bone_count; i++) {
+            if (model->bones[i].parent != anim->bones[i].parent) {
+                result = 0;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
 
 /*
  *  Immediate-style drawing functions
@@ -1311,7 +1730,8 @@ ATRA_API
 void
 atra_draw_aabb(AABB box, Color color)
 {
-
+    ATRA_UNUSED(box);
+    ATRA_UNUSED(color);
 }
 
 /* Draws a texture as a billboard */
@@ -1320,7 +1740,11 @@ void
 atra_draw_billboardtex(Camera *cam, Texture *tex, vec3 centre,
         float size, Color tint)
 {
-
+    ATRA_UNUSED(cam);
+    ATRA_UNUSED(tex);
+    ATRA_UNUSED(centre);
+    ATRA_UNUSED(size);
+    ATRA_UNUSED(tint);
 }
 
 /* Draws a subtexture as a billboard */
@@ -1329,7 +1753,12 @@ void
 atra_draw_billboardsubtex(Camera *cam, Texture *tex, IQuad rect,
         vec3 centre, float size, Color tint)
 {
-
+    ATRA_UNUSED(cam);
+    ATRA_UNUSED(tex);
+    ATRA_UNUSED(rect);
+    ATRA_UNUSED(centre);
+    ATRA_UNUSED(size);
+    ATRA_UNUSED(tint);
 }
 
 
@@ -1382,6 +1811,9 @@ atra_gltf_load(const char *path)
         model.bone_count = data->nodes_count;
         model.bones = calloc(model.bone_count, sizeof(BoneInfo));
         model.bind_pose = calloc(model.bone_count, sizeof(Transform));
+        model.invbind_mats = malloc(model.bone_count * 16 * sizeof(float));
+        model.world_mats = malloc(model.bone_count * 16 * sizeof(float));
+        model.bone_mats = malloc(model.bone_count * 16 * sizeof(float));
 
         atra_gltf_initbones(&model, data);
         atra_gltf_loadmaterial(&model, path, data);
@@ -1406,9 +1838,9 @@ ATRA_INLINE
 void
 atra_gltf_initbones(Model *restrict model, const cgltf_data *restrict data)
 {
-    Transform *curr_tf, *parent_tf;
-    BoneInfo *curr_bone;
-    int *completed_bones, completed_count, root;
+    int *completed_bones, completed_count, parent;
+    vec4 *invbind, *world, *parent_world;
+    mat4 local_mat;
     uint i;
 
     for (i = 0; i < data->nodes_count; i++) {
@@ -1440,32 +1872,31 @@ atra_gltf_initbones(Model *restrict model, const cgltf_data *restrict data)
     }
     completed_bones = calloc(model->bone_count, sizeof(int));
     completed_count = 0;
-
+    
     while (completed_count < model->bone_count) {
         for (i = 0; i < (uint)model->bone_count; i++) {
             if (completed_bones[i]) {
                 continue;
             }
+            parent = model->bones[i].parent;
+            parent = (parent < model->bone_count) ? parent : 0;
+            invbind = (vec4 *)(model->invbind_mats + i * 16);
+            world = (vec4 *)(model->world_mats + i * 16);
 
-            if (model->bones[i].parent < 0) {
-                completed_bones[i] = 1;
-                completed_count++;
+            glm_translate_make(local_mat, model->bind_pose[i].translation);
+            glm_quat_rotate(local_mat, model->bind_pose[i].rotation, local_mat);
+            glm_scale(local_mat, model->bind_pose[i].scale);
+
+            if (parent < 0) {
+                glm_mat4_copy(local_mat, world);
+            } else if (completed_bones[parent] == 0) {
                 continue;
+            } else {
+                parent_world = (vec4 *)(model->world_mats + parent * 16);
+                glm_mat4_mul(parent_world, local_mat, world);
             }
+            glm_mat4_inv(world, invbind);
 
-            if (!completed_bones[model->bones[i].parent]) {
-                continue;
-            }
-            curr_tf = &model->bind_pose[i];
-            curr_bone = &model->bones[i];
-            root = curr_bone->parent;
-            root = (root < model->bone_count) ? root : 0;
-            parent_tf = &model->bind_pose[root];
-
-            glm_quat_mul(parent_tf->rotation, curr_tf->rotation, curr_tf->rotation);
-            glm_quat_rotatev(parent_tf->rotation, curr_tf->translation, curr_tf->translation);
-            glm_vec3_add(parent_tf->translation, curr_tf->translation, curr_tf->translation);
-            glm_vec3_mul(parent_tf->scale, curr_tf->scale, curr_tf->scale);
             completed_bones[i] = 1;
             completed_count++;
         }
@@ -1477,7 +1908,7 @@ ATRA_INLINE
 Image
 atra_gltf_loadimage(cgltf_image *image, const char *tex_path, Color tint)
 {
-    Image rimage = {0};
+    Option_Image rimage = {0};
 
     if (image->uri) {
         if (strlen(image->uri) > 5   &&
@@ -1502,12 +1933,12 @@ atra_gltf_loadimage(cgltf_image *image, const char *tex_path, Color tint)
                 
                 free(data);
 
-                rimage.data = raw;
-                rimage.width = width;
-                rimage.height = height;
-                rimage.mipmaps = 1;
+                rimage.some.data = raw;
+                rimage.some.width = width;
+                rimage.some.height = height;
+                rimage.some.mipmaps = 1;
 
-                atra_image_applytint(&rimage, tint);
+                atra_image_applytint(&rimage.some, tint);
             }
         } else {
             const int path_size = strlen(tex_path) + strlen(image->uri) + 2;
@@ -1516,7 +1947,7 @@ atra_gltf_loadimage(cgltf_image *image, const char *tex_path, Color tint)
             sprintf(path, "%s/%s", tex_path, image->uri);
             rimage = atra_image_loadfile(path);
 
-            atra_image_applytint(&rimage, tint);
+            atra_image_applytint(&rimage.some, tint);
         }
     } else if (image->buffer_view) {
         u8 *data = malloc(image->buffer_view->size);
@@ -1532,17 +1963,17 @@ atra_gltf_loadimage(cgltf_image *image, const char *tex_path, Color tint)
         
         free(data);
 
-        rimage.data = raw;
-        rimage.width = width;
-        rimage.height = height;
-        rimage.mipmaps = 1;
+        rimage.some.data = raw;
+        rimage.some.width = width;
+        rimage.some.height = height;
+        rimage.some.mipmaps = 1;
 
-        atra_image_applytint(&rimage, tint);
+        atra_image_applytint(&rimage.some, tint);
     } else {
-        rimage = atra_image_gencolor(tint, 1, 1);
+        rimage.some = atra_image_gencolor(tint, 1, 1);
     }
 
-    return rimage;
+    return rimage.some;
 }
 
 ATRA_INLINE
@@ -1633,7 +2064,7 @@ atra_gltf_bindprimstobones(Model *model, const cgltf_data *data, int prim_index)
         if (data->nodes[node_id].mesh == &(data->meshes[prim_index])) {
             if (model->meshes[prim_index].bone_ids == NULL) {
                 model->meshes[prim_index].bone_ids =
-                        calloc(model->meshes[prim_index].vert_count * 4, sizeof(int));
+                        calloc(model->meshes[prim_index].vert_count * 4, sizeof(float));
                 model->meshes[prim_index].bone_weights =
                         calloc(model->meshes[prim_index].vert_count * 4, sizeof(float));
 
@@ -1752,7 +2183,7 @@ atra_gltf_loadmodelanims(const char *path, int *anim_count)
                     float frametime = frame * timestep;
                     float lerp_percent = 0.0f;
 
-                    for (uint j = 0; j < sampler->input->count; j++) {
+                    for (j = 0; (ulong)j < sampler->input->count; j++) {
                         float inputframetime;
 
                         if (atra_gltf_readvalue(sampler->input, j, &inputframetime)) {
@@ -1764,8 +2195,9 @@ atra_gltf_loadmodelanims(const char *path, int *anim_count)
                                 float previnputtime = 0.0f;
 
                                 if (atra_gltf_readvalue(sampler->input, output_min, &previnputtime)) {
-                                    if (inputframetime - previnputtime != 0) {
-                                        lerp_percent = (frametime - previnputtime) / (inputframetime - previnputtime);
+                                    const float frametimediff = inputframetime - previnputtime;
+                                    if (frametimediff < 0.0f || frametimediff > 0.0f) {
+                                        lerp_percent = (frametime - previnputtime) / frametimediff;
                                     }
                                 }
                                 break;
@@ -1828,7 +2260,7 @@ atra_gltf_loadmodelanims(const char *path, int *anim_count)
                 int completed_bone_count = 0;
 
                 while (completed_bone_count < output->bone_count) {
-                    for (int i = 0; i < output->bone_count; i++) {
+                    for (i = 0; i < (uint)output->bone_count; i++) {
                         if (completed_bones[i]) {
                             continue;
                         }
@@ -1872,6 +2304,185 @@ atra_gltf_loadmodelanims(const char *path, int *anim_count)
     return anims;
 }
 
+ATRA_INLINE
+ModelAnimRaw *
+atra_gltf_loadmodelanimsraw(const char *path, int *anim_count)
+{
+    size_t data_size = 0;
+    u8 *file_data = atra_util_loadfile(path, &data_size);
+    uint a, i;
+    int j;
+
+    ModelAnimRaw *anims = NULL;
+
+    if (file_data == NULL) {
+        return NULL;
+    }
+
+    cgltf_options options = {0};
+    cgltf_data *data = NULL;
+    cgltf_result result = cgltf_parse(&options, file_data, data_size, &data);
+    
+    if (result == cgltf_result_success) {
+        atra_log_print(LOG_INFO, "model: [%s] glTF animations (%s) count: %i",
+                path, (data->file_type == 2) ? "glb" : "gltf",
+                data->animations_count);
+        
+        result = cgltf_load_buffers(&options, data, path);
+
+        if (result != cgltf_result_success) {
+            atra_log_print(LOG_WARN, "model: [%s] unable to load glTF animations data", path);
+        }
+        anims = malloc(data->animations_count * sizeof(ModelAnimRaw));
+        *anim_count = data->animations_count;
+
+        for (a = 0; a < data->animations_count; a++) {
+            cgltf_animation *anim = data->animations + a;
+            ModelAnimRaw *output = anims + a;
+
+            float anim_duration = 0.0f;
+
+            for (i = 0; i < anim->channels_count; i++) {
+                cgltf_animation_channel *channel = anim->channels + i;
+                int framecounts = channel->sampler->input->count;
+                float lastframetime = 0.0f;
+
+                if (atra_gltf_readvalue(channel->sampler->input, framecounts - 1, &lastframetime)) {
+                    anim_duration = fmaxf(lastframetime, anim_duration);
+                }
+            }
+            output->duration = anim_duration;
+            output->frame_count = anim->channels->sampler->input->count;
+            output->bone_count = data->nodes_count;
+            output->frame_times = malloc(output->frame_count * sizeof(float));
+            output->bones = malloc(output->bone_count * sizeof(BoneInfo));
+            output->frame_poses = malloc(output->frame_count * sizeof(Transform *));
+
+            for (j = 0; j < output->bone_count; j++) {
+                strcpy(output->bones[j].name, data->nodes[j].name == 0 ? "ANIMJOINT" : data->nodes[j].name);
+                output->bones[j].parent = (data->nodes[j].parent != NULL) ? data->nodes[j].parent - data->nodes : -1;
+            }
+
+            for (int frame = 0; frame < output->frame_count; frame++) {
+                output->frame_poses[frame] = malloc(output->bone_count * sizeof(Transform));
+
+                for (i = 0; i < (uint) output->bone_count; i++) {
+                    if (data->nodes[i].has_translation) {
+                        memcpy(&output->frame_poses[frame][i].translation,
+                                data->nodes[i].translation, 3 * sizeof(float));
+                    } else {
+                        glm_vec3_zero(output->frame_poses[frame][i].translation);
+                    }
+
+                    if (data->nodes[i].has_rotation) {
+                        memcpy(&output->frame_poses[frame][i].rotation,
+                                data->nodes[i].rotation, 4 * sizeof(float));
+                    } else {
+                        glm_quat_identity(output->frame_poses[frame][i].rotation);
+                    }
+                    glm_quat_normalize(output->frame_poses[frame][i].rotation);
+
+                    if (data->nodes[i].has_scale) {
+                        memcpy(&output->frame_poses[frame][i].scale,
+                                data->nodes[i].scale, 3 * sizeof(float));
+                    } else {
+                        glm_vec3_one(output->frame_poses[frame][i].scale);
+                    }
+                }
+            }
+
+            for (uint channel_id = 0; channel_id < anim->channels_count; channel_id++) {
+                cgltf_animation_channel *channel = anim->channels + channel_id;
+                cgltf_animation_sampler *sampler = channel->sampler;
+
+                int bone_id = channel->target_node - data->nodes;
+
+                for (j = 0; (ulong)j < sampler->input->count; j++) {
+                    float inputframetime;
+
+                    if (atra_gltf_readvalue(sampler->input, j, &inputframetime)) {
+                        output->frame_times[j] = inputframetime;
+                    } else {
+                        break;
+                    }
+                }
+
+                for (int frame = 0; frame < output->frame_count; frame++) {
+                    
+                    if (channel->target_path == cgltf_animation_path_type_translation) {
+                        vec3 trans;
+
+                        if (atra_gltf_readvalue(sampler->output, frame, trans)) {
+                            memcpy(output->frame_poses[frame][bone_id].translation, trans, 3 * sizeof(float));
+                        }
+                    }
+
+                    if (channel->target_path == cgltf_animation_path_type_rotation) {
+                        versor rot;
+
+                        if (atra_gltf_readvalue(sampler->output, frame, rot)) {
+                            memcpy(output->frame_poses[frame][bone_id].rotation, rot, 4 * sizeof(float));
+                        }
+                    }
+                        
+                    if (channel->target_path == cgltf_animation_path_type_scale) {
+                        vec3 scale;
+
+                        if (atra_gltf_readvalue(sampler->output, frame, scale)) {
+                            memcpy(output->frame_poses[frame][bone_id].scale, scale, 3 * sizeof(float));
+                        }
+                    }
+                }
+            }
+
+            for (int frame = 0; frame < output->frame_count; frame++) {
+                int *completed_bones = calloc(output->bone_count, sizeof(int));
+                int completed_bone_count = 0;
+
+                while (completed_bone_count < output->bone_count) {
+                    for (i = 0; i < (uint)output->bone_count; i++) {
+                        if (completed_bones[i]) {
+                            continue;
+                        }
+
+                        if (output->bones[i].parent < 0) {
+                            completed_bones[i] = 1;
+                            completed_bone_count++;
+                            continue;
+                        }
+
+                        if (completed_bones[output->bones[i].parent] == 0) {
+                            continue;
+                        }
+                        /*
+                        glm_quat_mul(output->frame_poses[frame][output->bones[i].parent].rotation,
+                                output->frame_poses[frame][i].rotation,
+                                output->frame_poses[frame][i].rotation);
+                        glm_quat_rotatev(output->frame_poses[frame][output->bones[i].parent].rotation,
+                                output->frame_poses[frame][i].translation,
+                                output->frame_poses[frame][i].translation);
+                        glm_vec3_add(output->frame_poses[frame][output->bones[i].parent].translation,
+                                output->frame_poses[frame][i].translation,
+                                output->frame_poses[frame][i].translation);
+                        glm_vec3_mul(output->frame_poses[frame][output->bones[i].parent].scale,
+                                output->frame_poses[frame][i].scale,
+                                output->frame_poses[frame][i].scale);
+                        */    
+                        completed_bones[i] = 1;
+                        completed_bone_count++;
+                    }
+                }
+                free(completed_bones);
+            }
+        }
+        cgltf_free(data);
+    } else {
+        atra_log_print(LOG_WARN, "model: Failed to load glTF animation data: %s", path);
+    }
+    free(file_data);
+
+    return anims;
+}
 
 ATRA_INLINE
 void
@@ -1926,7 +2537,7 @@ atra_gltf_loadmesh(cgltf_data *data, cgltf_mesh *mesh, Model *out_model,
                 uint bone_count = acc->count;
                 uint total_bone_weights = bone_count * 4;
 
-                out_model->meshes[*prim_index].bone_ids = malloc(total_bone_weights * sizeof(int));
+                out_model->meshes[*prim_index].bone_ids = malloc(total_bone_weights * sizeof(float));
                 short *bones = atra_gltf_readvalueas(acc, cgltf_component_type_r_16, 0);
 
                 for (a = 0; a < total_bone_weights; a++) {
@@ -1978,7 +2589,7 @@ atra_gltf_loadmesh(cgltf_data *data, cgltf_mesh *mesh, Model *out_model,
 
 ATRA_INLINE
 void
-atra_gltf_getnodetransform(cgltf_node *node, vec4 *current, vec4 *dest)
+atra_gltf_getnodetransform(cgltf_node *node, mat4 current, vec4 *dest)
 {
     glm_mat4_copy(current, dest);
 
@@ -2208,6 +2819,8 @@ atra_gltf_readvalueas(cgltf_accessor *acc, cgltf_component_type type, int adjust
                         uint *typedArray = (uint *)array;
                         for (uint i = 0; i < count*typeElements; i++) typedArray[i] = (uint)typedAdditionalArray[i];
                     } break;
+                    case cgltf_component_type_r_8u:
+                    case cgltf_component_type_invalid:
                     default:
                     {
                         free(array);
@@ -2246,6 +2859,8 @@ atra_gltf_readvalueas(cgltf_accessor *acc, cgltf_component_type type, int adjust
                         uint *typedArray = (uint *)array;
                         for (uint i = 0; i < count*typeElements; i++) typedArray[i] = (uint)typedAdditionalArray[i];
                     } break;
+                    case cgltf_component_type_r_8:
+                    case cgltf_component_type_invalid:
                     default:
                     {
                         free(array);
@@ -2296,6 +2911,8 @@ atra_gltf_readvalueas(cgltf_accessor *acc, cgltf_component_type type, int adjust
                         uint *typedArray = (uint *)array;
                         for (uint i = 0; i < count*typeElements; i++) typedArray[i] = (uint)typedAdditionalArray[i];
                     } break;
+                    case cgltf_component_type_r_16u:
+                    case cgltf_component_type_invalid:
                     default:
                     {
                         free(array);
@@ -2342,6 +2959,8 @@ atra_gltf_readvalueas(cgltf_accessor *acc, cgltf_component_type type, int adjust
                         uint *typedArray = (uint *)array;
                         for (uint i = 0; i < count*typeElements; i++) typedArray[i] = (uint)typedAdditionalArray[i];
                     } break;
+                    case cgltf_component_type_r_16:
+                    case cgltf_component_type_invalid:
                     default:
                     {
                         free(array);
@@ -2380,6 +2999,8 @@ atra_gltf_readvalueas(cgltf_accessor *acc, cgltf_component_type type, int adjust
                         uint *typedArray = (uint *)array;
                         for (uint i = 0; i < count*typeElements; i++) typedArray[i] = (uint)typedAdditionalArray[i];
                     } break;
+                    case cgltf_component_type_r_32f:
+                    case cgltf_component_type_invalid:
                     default:
                     {
                         free(array);
@@ -2434,6 +3055,8 @@ atra_gltf_readvalueas(cgltf_accessor *acc, cgltf_component_type type, int adjust
                         float *typedArray = (float *)array;
                         for (uint i = 0; i < count*typeElements; i++) typedArray[i] = (float)typedAdditionalArray[i];
                     } break;
+                    case cgltf_component_type_r_32u:
+                    case cgltf_component_type_invalid:
                     default:
                     {
                         free(array);
@@ -2442,6 +3065,7 @@ atra_gltf_readvalueas(cgltf_accessor *acc, cgltf_component_type type, int adjust
                     } break;
                 }
             } break;
+            case cgltf_component_type_invalid:
             default:
             {
                 free(array);
@@ -2481,7 +3105,8 @@ ATRA_INLINE
 uchar *
 atra_base64_decode(char *in, int *size)
 {
-    uchar a, b, c, d, *buf;
+    uchar a, b, c, d;
+    uchar *buf;
     int i;
 
     *size = atra_base64_getsize(in);
@@ -2507,12 +3132,36 @@ atra_base64_decode(char *in, int *size)
     } else if (*size % 3 == 2) {
         i = *size / 3;
         a = base64_table[(int)in[4 * i + 0]];
-        a = base64_table[(int)in[4 * i + 1]];
-        a = base64_table[(int)in[4 * i + 2]];
+        b = base64_table[(int)in[4 * i + 1]];
+        c = base64_table[(int)in[4 * i + 2]];
 
         buf[*size - 2] = (a << 2) | (b >> 4);
         buf[*size - 1] = (b << 4) | (c >> 2);
     }
 
     return buf;
+}
+
+ATRA_INLINE
+void
+atra_mat4_make_transrot(vec3 trans, versor rot, mat4 dest)
+{
+    glm_mat4_identity(dest);
+    glm_translate(dest, trans);
+    glm_quat_rotate(dest, rot, dest);
+}
+
+ATRA_INLINE
+void
+atra_log_printmatrix(mat4 m)
+{
+    atra_log_print(LOG_INFO, "\n"
+            "[[%.3f, %.3f, %.3f, %.3f],\n" \
+            " [%.3f, %.3f, %.3f, %.3f],\n" \
+            " [%.3f, %.3f, %.3f, %.3f],\n" \
+            " [%.3f, %.3f, %.3f, %.3f]]",
+            m[0][0], m[0][1], m[0][2], m[0][3],
+            m[1][0], m[1][1], m[1][2], m[1][3],
+            m[2][0], m[2][1], m[2][2], m[2][3],
+            m[3][0], m[3][1], m[3][2], m[3][3]);
 }
