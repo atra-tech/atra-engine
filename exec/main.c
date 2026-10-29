@@ -139,7 +139,7 @@ static const char *fshader_code =
     "   gl_FragColor = texelColor * color * fragColor * vec4(ambient + diffuse + specular, 1.0);    \n"
     "}                                                                  \n";
 
-#define INST_COUNT 1024
+#define INST_COUNT 16
 
 static Material material;
 static Mesh mesh;
@@ -153,8 +153,6 @@ static int anim_count;
 
 static float times[INST_COUNT];
 static float modelmats[INST_COUNT * 16];
-
-static Font font;
 
 static GUIWindow *gui_window;
 static GUIElem *gui_elem_base;
@@ -333,8 +331,8 @@ init_gui(void)
 
     atra_gui_elem_settext(gui_elem_text, sample_text);
     atra_gui_elem_settext(gui_elem_field, "Enter text...");
-    atra_gui_elem_settextalign(gui_elem_text, ATRA_GUI_ALIGN_CENTRE | ATRA_GUI_ALIGN_MIDDLE);
-    atra_gui_elem_settextalign(gui_elem_field, ATRA_GUI_ALIGN_MIDDLE);
+    atra_gui_elem_settextalign(gui_elem_text, ATRA_GUI_TEXTALIGN_CENTRE | ATRA_GUI_TEXTALIGN_MIDDLE);
+    atra_gui_elem_settextalign(gui_elem_field, ATRA_GUI_TEXTALIGN_MIDDLE);
 
     atra_gui_window_setelem(gui_window, gui_elem_base);
     atra_gui_elem_addelem(gui_elem_base, gui_elem_buttons[0]);
@@ -681,7 +679,7 @@ main(int argc, char **argv)
 
     camera = atra_camera_create(ATRA_CAMERA_PROJECTION, 1280, 720);
     camera2D = atra_camera_create(ATRA_CAMERA_ORTHOGRAPHIC, 1280, 720);
-    font = atra_font_loadfile("res/font/Avara.ttf", 64, NULL, ATRA_FONT_DEFAULT_GLYPHCOUNT);
+    //font = atra_font_loadfile("res/font/Avara.ttf", 64, NULL, ATRA_FONT_DEFAULT_GLYPHCOUNT);
     
     //build_mesh();
 
@@ -696,7 +694,7 @@ main(int argc, char **argv)
     }
     atra_model_delete(&jerry);
     atra_rawanim_deletearray(dance_anims, anim_count);
-    atra_font_delete(&font);
+    //atra_font_delete(&font);
 
     //atra_mesh_delete(&mesh);
     atra_engine_stop();
