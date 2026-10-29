@@ -13,6 +13,10 @@
 
 #include "common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum physbody_shape_type {
     ATRA_PHYS_SHAPE_AABB,
     ATRA_PHYS_SHAPE_SPHERE,
@@ -277,5 +281,8 @@ ATRA_API PhysBody atra_physbody_create(uint shape_type, PhysShape shape);
 /* Returns true if two physics bodies are intersecting */
 //ATRA_API int atra_physbody_collision(PhysBody a, PhysBody b);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_PHYSICS_H */

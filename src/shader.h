@@ -32,10 +32,15 @@
 #define ATRA_UNIFORM_NAME_PROJMAT       "projmat"
 #define ATRA_UNIFORM_NAME_MODELMAT      "modelmat"
 #define ATRA_UNIFORM_NAME_NORMALMAT     "normalmat"
+#define ATRA_UNIFORM_NAME_SCREENRES		"screen_res"
 #define ATRA_UNIFORM_NAME_COLOR         "color"
 #define ATRA_UNIFORM_NAME_TEXTURE0      "albedo_map"
 #define ATRA_UNIFORM_NAME_TEXTURE1      "specular_map"
 #define ATRA_UNIFORM_NAME_TEXTURE2      "normal_map"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum shader_locs {
     ATRA_SHADER_LOC_V_POSITION,
@@ -54,6 +59,7 @@ enum shader_locs {
     ATRA_SHADER_LOC_M_MODEL,
     ATRA_SHADER_LOC_M_NORMAL,
     ATRA_SHADER_LOC_V_VIEW,
+	ATRA_SHADER_LOC_V_SCREENRES,
     ATRA_SHADER_LOC_COLOR_DIFFUSE,
     ATRA_SHADER_LOC_COLOR_SPECULAR,
     ATRA_SHADER_LOC_COLOR_AMBIENT,
@@ -100,9 +106,6 @@ typedef struct Shader {
     int *locs;
 } Shader;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* Compiles a shader program from given code, with specified shader type */
 ATRA_API uint atra_shader_compile(const char *code, int type);

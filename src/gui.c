@@ -168,13 +168,20 @@ static const char gui_vert_shader[] =
     "uniform mat4 viewmat;              \n"
     "uniform mat4 projmat;              \n"
     "uniform mat4 modelmat;             \n"
-    "uniform mat4 mvp;                  \n"
+    "uniform mat4 mvp;				    \n"
+	"uniform ivec2 screen_res;          \n"
     "void main()                        \n"
     "{                                  \n"
     "    frag_uv = vert_uv;             \n"
     "    frag_color = vert_color;       \n"
     "    frag_white = vert_uv2[0];      \n"
-    "    gl_Position = mvp * vec4(vert_pos, 1.0); \n"
+	"	 vec4 snap_pix = mvp * vec4(vert_pos, 1.0);\n"
+//	"	 vec4 clip_pos = snap_pix;		\n"
+//	"	 clip_pos.xyz = snap_pix.xyz / snap_pix.w;\n"
+//	"	 clip_pos.x = floor(screen_res.x * clip_pos.x) / screen_res.x;\n"
+//	"	 clip_pos.y = floor(screen_res.y * clip_pos.y) / screen_res.y;\n"
+//	"	 clip_pos.xyz = clip_pos.xyz * snap_pix.w;\n"
+    "    gl_Position = snap_pix; \n"
     "}                                  \n";
 
 static const char *gui_frag_shader =
@@ -377,7 +384,7 @@ atra_gui_init_none(void)
     SET_STYLE_COLOR(gui_base_defaults.none.disabled, 0x30, 0x30, 0x30);
     SET_COLOR(gui_base_defaults.none.border.color, 0x80, 0x80, 0x80);
     gui_base_defaults.none.border.size = 2.0f;
-    SET_VEC2(gui_base_defaults.none.padding, 4.0f, 4.0f);
+    SET_VEC2(gui_base_defaults.none.padding, 0.0f, 0.0f);
     SET_VEC2(gui_base_defaults.none.margin, 4.0f, 4.0f);
     gui_base_defaults.none.rounding = 4.0f;
 
@@ -399,7 +406,7 @@ atra_gui_init_panel(void)
     SET_STYLE_COLOR(gui_base_defaults.panel.disabled, 0x40, 0x40, 0x40);
     SET_COLOR(gui_base_defaults.panel.border.color, 0x80, 0x80, 0x80);
     gui_base_defaults.panel.border.size = 2.0f;
-    SET_VEC2(gui_base_defaults.panel.padding, 4.0f, 4.0f);
+    SET_VEC2(gui_base_defaults.panel.padding, 0.0f, 0.0f);
     SET_VEC2(gui_base_defaults.panel.margin, 4.0f, 4.0f);
     gui_base_defaults.panel.rounding = 4.0f;
 
@@ -421,7 +428,7 @@ atra_gui_init_label(void)
     SET_STYLE_COLOR(gui_base_defaults.label.disabled, 0x40, 0x40, 0x40);
     SET_COLOR(gui_base_defaults.label.border.color, 0x80, 0x80, 0x80);
     gui_base_defaults.label.border.size = 2.0f;
-    SET_VEC2(gui_base_defaults.label.padding, 4.0f, 4.0f);
+    SET_VEC2(gui_base_defaults.label.padding, 0.0f, 0.0f);
     SET_VEC2(gui_base_defaults.label.margin, 4.0f, 4.0f);
     gui_base_defaults.label.rounding = 4.0f;
 
@@ -443,7 +450,7 @@ atra_gui_init_button(void)
     SET_STYLE_COLOR(gui_base_defaults.button.disabled, 0x20, 0x20, 0x20);
     SET_COLOR(gui_base_defaults.button.border.color, 0x80, 0x80, 0x80);
     gui_base_defaults.button.border.size = 2.0f;
-    SET_VEC2(gui_base_defaults.button.padding, 4.0f, 4.0f);
+    SET_VEC2(gui_base_defaults.button.padding, 0.0f, 0.0f);
     SET_VEC2(gui_base_defaults.button.margin, 4.0f, 4.0f);
     gui_base_defaults.button.rounding = 4.0f;
 
@@ -465,7 +472,7 @@ atra_gui_init_toggle(void)
     SET_STYLE_COLOR(gui_base_defaults.toggle.disabled, 0x20, 0x20, 0x20);
     SET_COLOR(gui_base_defaults.toggle.border.color, 0x80, 0x80, 0x80);
     gui_base_defaults.toggle.border.size = 2.0f;
-    SET_VEC2(gui_base_defaults.toggle.padding, 4.0f, 4.0f);
+    SET_VEC2(gui_base_defaults.toggle.padding, 0.0f, 0.0f);
     SET_VEC2(gui_base_defaults.toggle.margin, 4.0f, 4.0f);
     gui_base_defaults.toggle.rounding = 4.0f;
 
@@ -487,7 +494,7 @@ atra_gui_init_slider(void)
     SET_STYLE_COLOR(gui_base_defaults.slider.disabled, 0x40, 0x40, 0x40);
     SET_COLOR(gui_base_defaults.slider.border.color, 0x80, 0x80, 0x80);
     gui_base_defaults.slider.border.size = 2.0f;
-    SET_VEC2(gui_base_defaults.slider.padding, 4.0f, 4.0f);
+    SET_VEC2(gui_base_defaults.slider.padding, 0.0f, 0.0f);
     SET_VEC2(gui_base_defaults.slider.margin, 4.0f, 4.0f);
     gui_base_defaults.slider.rounding = 4.0f;
 
@@ -509,7 +516,7 @@ atra_gui_init_progressbar(void)
     SET_STYLE_COLOR(gui_base_defaults.progressbar.disabled, 0x40, 0x40, 0x40);
     SET_COLOR(gui_base_defaults.progressbar.border.color, 0x80, 0x80, 0x80);
     gui_base_defaults.progressbar.border.size = 2.0f;
-    SET_VEC2(gui_base_defaults.progressbar.padding, 4.0f, 4.0f);
+    SET_VEC2(gui_base_defaults.progressbar.padding, 0.0f, 0.0f);
     SET_VEC2(gui_base_defaults.progressbar.margin, 4.0f, 4.0f);
     gui_base_defaults.progressbar.rounding = 4.0f;
 
@@ -531,7 +538,7 @@ atra_gui_init_scrollbar(void)
     SET_STYLE_COLOR(gui_base_defaults.scrollbar.disabled, 0x40, 0x40, 0x40);
     SET_COLOR(gui_base_defaults.scrollbar.border.color, 0x80, 0x80, 0x80);
     gui_base_defaults.scrollbar.border.size = 2.0f;
-    SET_VEC2(gui_base_defaults.scrollbar.padding, 4.0f, 4.0f);
+    SET_VEC2(gui_base_defaults.scrollbar.padding, 0.0f, 0.0f);
     SET_VEC2(gui_base_defaults.scrollbar.margin, 4.0f, 4.0f);
     gui_base_defaults.scrollbar.rounding = 4.0f;
 
@@ -596,7 +603,7 @@ void atra_gui_init_combobox(void)
     SET_STYLE_COLOR(gui_base_defaults.combobox.disabled, 0x40, 0x40, 0x40);
     SET_COLOR(gui_base_defaults.combobox.border.color, 0x80, 0x80, 0x80);
     gui_base_defaults.combobox.border.size = 2.0f;
-    SET_VEC2(gui_base_defaults.combobox.padding, 4.0f, 4.0f);
+    SET_VEC2(gui_base_defaults.combobox.padding, 0.0f, 0.0f);
     SET_VEC2(gui_base_defaults.combobox.margin, 4.0f, 4.0f);
     gui_base_defaults.combobox.rounding = 4.0f;
 
@@ -618,7 +625,7 @@ atra_gui_init_menu(void)
     SET_STYLE_COLOR(gui_base_defaults.menu.disabled, 0x40, 0x40, 0x40);
     SET_COLOR(gui_base_defaults.menu.border.color, 0x80, 0x80, 0x80);
     gui_base_defaults.menu.border.size = 2.0f;
-    SET_VEC2(gui_base_defaults.menu.padding, 4.0f, 4.0f);
+    SET_VEC2(gui_base_defaults.menu.padding, 0.0f, 0.0f);
     SET_VEC2(gui_base_defaults.menu.margin, 4.0f, 4.0f);
     gui_base_defaults.menu.rounding = 4.0f;
 
@@ -640,7 +647,7 @@ atra_gui_init_tooltip(void)
     SET_STYLE_COLOR(gui_base_defaults.tooltip.disabled, 0x40, 0x40, 0x40);
     SET_COLOR(gui_base_defaults.tooltip.border.color, 0x80, 0x80, 0x80);
     gui_base_defaults.tooltip.border.size = 2.0f;
-    SET_VEC2(gui_base_defaults.tooltip.padding, 4.0f, 4.0f);
+    SET_VEC2(gui_base_defaults.tooltip.padding, 0.0f, 0.0f);
     SET_VEC2(gui_base_defaults.tooltip.margin, 4.0f, 4.0f);
     gui_base_defaults.tooltip.rounding = 4.0f;
 
@@ -855,7 +862,8 @@ atra_gui_handle(void)
 
             if (gui.hover->scroll_y_max.value.pixels > 0) {
                 const float padding = gui.hover->style.base->padding[1];
-                const float border = gui.hover->style.base->border.size;
+				const float border = BIT_CHK(gui.hover->attrs, ATRA_GUI_ELEM_HASBORDER) ?
+						gui.hover->style.base->border.size : 0;
                 const float y_offset = (border + padding) * 2;
                 const float elem_h = gui.hover->real_quad.h * atra_window_getheight() - y_offset;
 
@@ -973,6 +981,15 @@ atra_gui_fullremesh(void)
             window->elem->dirty = 1;
         }
     }
+}
+
+/* Sets the GUI texture atlas for all elements */
+ATRA_API
+void
+atra_gui_settextureatlas(Texture *tex)
+{
+	gui.material.maps[ATRA_TEXTURE_ALBEDO].tex = *tex;
+	gui.material.maps[ATRA_TEXTURE_ALBEDO].color = (Color){0xFF, 0xFF, 0xFF, 0xFF};
 }
 
 /* Toggles the visibility of the text cursor */
@@ -1114,7 +1131,7 @@ atra_gui_text_calccursorquad(GUIElem *elem)
 
     const float font_size = elem->style.text->size;
     const float font_spacing = elem->style.text->spacing;
-    const float font_border = elem->style.base->border.size;
+    const float font_border = BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HASBORDER) ? elem->style.base->border.size : 0;
     const float * const font_padding = elem->style.base->padding;
 
     const float x_offset = font_border + font_padding[0];
@@ -1128,10 +1145,10 @@ atra_gui_text_calccursorquad(GUIElem *elem)
     const float row_skip = (font->size + skip_extra) * scale;
     const int code_count = elem->code_count;
     
-    const int centre = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_CENTRE);
-    const int right = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_RIGHT);
-    const int middle = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_MIDDLE);
-    const int bottom = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_BOTTOM);
+    const int centre = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_CENTRE);
+    const int right = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_RIGHT);
+    const int middle = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_MIDDLE);
+    const int bottom = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_BOTTOM);
 
     const int row_count = atra_list_length(&elem->rows);
     const float x_factor = DECIDE(centre, 0.5f, 1.0f);
@@ -1320,7 +1337,7 @@ atra_gui_text_drawtextselection(GUIWindow *window, GUIElem *elem, IQuad scissor,
 
     const float font_size = elem->style.text->size;
     const float font_spacing = elem->style.text->spacing;
-    const float font_border = elem->style.base->border.size;
+    const float font_border = BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HASBORDER) ? elem->style.base->border.size : 0;
     const float * const font_padding = elem->style.base->padding;
 
     const float x_offset = font_border + font_padding[0];
@@ -1334,10 +1351,10 @@ atra_gui_text_drawtextselection(GUIWindow *window, GUIElem *elem, IQuad scissor,
     const float row_skip = (font->size + skip_extra) * scale;
     const int code_count = elem->code_count;
     
-    const int centre = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_CENTRE);
-    const int right = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_RIGHT);
-    const int middle = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_MIDDLE);
-    const int bottom = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_BOTTOM);
+    const int centre = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_CENTRE);
+    const int right = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_RIGHT);
+    const int middle = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_MIDDLE);
+    const int bottom = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_BOTTOM);
 
     const int row_count = atra_list_length(&elem->rows);
     const float x_factor = DECIDE(centre, 0.5f, 1.0f);
@@ -1531,7 +1548,7 @@ atra_gui_window_mesh(GUIWindow *window)
 
         while (elem != NULL) {
             if (BIT_CHK(elem->attrs, ATRA_GUI_ELEM_SCISSORTEST | ATRA_GUI_ELEM_SCROLLABLE)) {
-                const int border_size = elem->style.base->border.size;
+				const uint border_size = BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HASBORDER) ? elem->style.base->border.size : 0;
                 const int q_x0 = elem->real_quad.x * screen_width + border_size;
                 const int q_y0 = elem->real_quad.y * screen_height + border_size;
                 const int q_x1 = q_x0 + elem->real_quad.w * screen_width - border_size * 2;
@@ -1564,7 +1581,7 @@ atra_gui_window_mesh(GUIWindow *window)
         
         /* Mesh element into selected mesh */
         if (BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HIDDEN) == 0) {
-            const uint border_size = elem->style.base->border.size;
+            const uint border_size = BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HASBORDER) ? elem->style.base->border.size : 0;
 
             int x0 = elem->real_quad.x * screen_width;
             int y0 = elem->real_quad.y * screen_height;
@@ -2024,7 +2041,7 @@ atra_gui_elem_calctextcursorpos(GUIElem *elem)
 
     const float font_size = elem->style.text->size;
     const float font_spacing = elem->style.text->spacing;
-    const float font_border = elem->style.base->border.size;
+    const float font_border = BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HASBORDER) ? elem->style.base->border.size : 0;
     const float * const font_padding = elem->style.base->padding;
 
     const float x_offset = font_border + font_padding[0];
@@ -2038,10 +2055,10 @@ atra_gui_elem_calctextcursorpos(GUIElem *elem)
     const float row_skip = (font->size + skip_extra) * scale;
     const uint code_count = elem->code_count;
 
-    const int centre = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_CENTRE);
-    const int right = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_RIGHT);
-    const int middle = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_MIDDLE);
-    const int bottom = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_BOTTOM);
+    const int centre = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_CENTRE);
+    const int right = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_RIGHT);
+    const int middle = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_MIDDLE);
+    const int bottom = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_BOTTOM);
 
     const uint row_count = atra_list_length(&elem->rows);
     const float x_factor = DECIDE(centre, 0.5f, 1.0f);
@@ -2303,7 +2320,8 @@ atra_gui_elem_update(GUIElem *elem, uint dt)
 
             if (elem->scroll_x_max.value.pixels > 0) {
                 const float padding = gui.hover->style.base->padding[0];
-                const float border = gui.hover->style.base->border.size;
+                const float border = BIT_CHK(gui.hover->attrs, ATRA_GUI_ELEM_HASBORDER) ?
+					gui.hover->style.base->border.size : 0;
                 const float x_offset = (border + padding) * 2;
                 const float elem_w = gui.hover->real_quad.w * 
                         atra_window_getwidth() - x_offset;
@@ -2318,7 +2336,8 @@ atra_gui_elem_update(GUIElem *elem, uint dt)
             
             if (elem->scroll_y_max.value.pixels > 0) {
                 const float padding = gui.hover->style.base->padding[1];
-                const float border = gui.hover->style.base->border.size;
+                const float border = BIT_CHK(gui.hover->attrs, ATRA_GUI_ELEM_HASBORDER) ?
+					gui.hover->style.base->border.size : 0;
                 const float y_offset = (border + padding) * 2;
                 const float elem_h = gui.hover->real_quad.h *
                         atra_window_getheight() - y_offset;
@@ -2438,6 +2457,14 @@ atra_gui_elem_setmaxscroll_y(GUIElem *elem, int type, float data)
     elem->scroll_y_max.data_type = type;
 }
 
+/* Sets the alignment constraint flags of the element */
+ATRA_API
+void
+atra_gui_elem_setalignment(GUIElem *elem, u32 flags)
+{
+	elem->align = flags;
+}
+
 /* Sets the pointer to a specific style subtype */
 ATRA_API
 void
@@ -2482,7 +2509,7 @@ ATRA_API
 void
 atra_gui_elem_settextalign(GUIElem *elem, int alignment)
 {
-    elem->alignment = alignment;
+    elem->text_align = alignment;
     elem->rebuild_rows = 1;
     atra_gui_elem_flagremesh(elem);
 }
@@ -2563,8 +2590,10 @@ atra_gui_elem_calcquad(GUIElem *elem)
     int i;
 
     if (has_parent) {
-        const float border_size_w = parent->style.base->border.size * screen_width_inv;
-        const float border_size_h = parent->style.base->border.size * screen_height_inv;
+        const float border_size_w = BIT_CHK(parent->attrs, ATRA_GUI_ELEM_HASBORDER) ?
+				parent->style.base->border.size * screen_width_inv : 0;
+        const float border_size_h = BIT_CHK(parent->attrs, ATRA_GUI_ELEM_HASBORDER) ?
+				parent->style.base->border.size * screen_height_inv : 0;
         const float padding_w = parent->style.base->padding[0] * screen_width_inv;
         const float padding_h = parent->style.base->padding[1] * screen_height_inv;
 
@@ -2593,20 +2622,61 @@ atra_gui_elem_calcquad(GUIElem *elem)
 
     const float elem_mult_w = DECIDE(ispix_w, screen_width_inv, parent_quad.w);
     const float elem_mult_h = DECIDE(ispix_h, screen_height_inv, parent_quad.h);
-        
-    result.x = DECIDE(ispix_x,
-            elem->quad.x * screen_width_inv + parent_quad.x,
-            elem->quad.x * parent_quad.w + parent_quad.x);
-    result.y = DECIDE(ispix_y,
-            elem->quad.y * screen_height_inv + parent_quad.y,
-            elem->quad.y * parent_quad.h + parent_quad.y);
-    result.w = DECIDE(elem_keep_h,
-            elem->quad.h * elem->ratio * elem_ratio_w,
-            elem->quad.w * elem_mult_w);
-    result.h = DECIDE(elem_keep_w,
-            elem->quad.w * elem->ratio * elem_ratio_h,
-            elem->quad.h * elem_mult_h);
-    
+
+	/* Calculate screen-space width and height of the quad */
+	result.w = DECIDE(elem_keep_h,
+			elem->quad.h * elem->ratio * elem_ratio_w,
+			elem->quad.w * elem_mult_w);
+	result.h = DECIDE(elem_keep_w,
+			elem->quad.w * elem->ratio * elem_ratio_h,
+			elem->quad.h * elem_mult_h);
+
+	/* Calculate screen-space X coordinate of the quad */
+	if (BIT_CHK(elem->align, ATRA_GUI_CONS_MIDDLE_X)) {
+		result.x = DECIDE(ispix_x,
+				elem->quad.x * screen_width_inv + parent_quad.x + (parent_quad.w - result.w) / 2.0f,
+				elem->quad.x * parent_quad.w + parent_quad.x + (parent_quad.w - result.w) / 2.0f);
+		//result.x += (screen_width_inv / 8.0);
+		//result.w += (screen_width_inv / 8.0);
+	} else if (BIT_CHK(elem->align, ATRA_GUI_CONS_DIST_RIGHT)) {
+		result.x = DECIDE(ispix_x,
+				-elem->quad.x * screen_width_inv + parent_quad.x + parent_quad.w - result.w,
+				-elem->quad.x * parent_quad.w + parent_quad.x + parent_quad.w - result.w);
+		//result.x -= (screen_width_inv / 8.0);
+		//result.w -= (screen_width_inv / 8.0);
+	} else {
+		result.x = DECIDE(ispix_x,
+				elem->quad.x * screen_width_inv + parent_quad.x,
+				elem->quad.x * parent_quad.w + parent_quad.x);
+		//result.x += (screen_width_inv / 8.0);
+		//result.w += (screen_width_inv / 8.0);
+	}
+ 
+	/* Calculate screen-space Y coordinate of the quad */
+	if (BIT_CHK(elem->align, ATRA_GUI_CONS_MIDDLE_Y)) {
+		result.y = DECIDE(ispix_y,
+				elem->quad.y * screen_height_inv + parent_quad.y + (parent_quad.h - result.h) / 2.0f,
+				elem->quad.y * parent_quad.h + parent_quad.y + (parent_quad.h - result.h) / 2.0f);
+		//result.y += (screen_height_inv / 8.0);
+		//result.h += (screen_height_inv / 8.0);
+	} else if (BIT_CHK(elem->align, ATRA_GUI_CONS_DIST_BOT)) {
+		result.y = DECIDE(ispix_y,
+				-elem->quad.y * screen_height_inv + parent_quad.y + parent_quad.h - result.h,
+				-elem->quad.y * parent_quad.h + parent_quad.y + parent_quad.h - result.h);
+		//result.y -= (screen_height_inv / 8.0);
+		//result.h -= (screen_height_inv / 8.0);
+	} else {
+		result.y = DECIDE(ispix_y,
+				elem->quad.y * screen_height_inv + parent_quad.y,
+				elem->quad.y * parent_quad.h + parent_quad.y);
+		//result.y += (screen_height_inv / 8.0);
+		//result.h += (screen_height_inv / 8.0);
+	}
+	result.x += (screen_width_inv / 8.0);
+	result.y += (screen_height_inv / 8.0);
+	result.w += (screen_width_inv / 8.0);
+	result.h += (screen_height_inv / 8.0);
+
     if (has_parent && BIT_CHK(parent->attrs, ATRA_GUI_ELEM_SCROLLABLE | ATRA_GUI_ELEM_SCISSORTEST)) {
         result.x -= parent->scroll_x * screen_width_inv;
         result.y -= parent->scroll_y * screen_height_inv;
@@ -2656,8 +2726,10 @@ atra_gui_elem_calcquad_auto(GUIElem *elem)
     GUIElem *prev = NULL;
 
     /* Calculate the quad of the parent element */
-    const float border_size_w = elem->style.base->border.size * screen_width_inv;
-    const float border_size_h = elem->style.base->border.size * screen_height_inv;
+    const float border_size_w = BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HASBORDER) ?
+		elem->style.base->border.size * screen_width_inv : 0;
+    const float border_size_h = BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HASBORDER) ?
+		elem->style.base->border.size * screen_height_inv : 0;
     const float padding_w = elem->style.base->padding[0] * screen_width_inv;
     const float padding_h = elem->style.base->padding[1] * screen_height_inv;
 
@@ -2825,7 +2897,7 @@ atra_gui_elem_calcrowdata(GUIElem *elem)
 
     const float font_size = elem->style.text->size;
     const float font_spacing = elem->style.text->spacing;
-    const float font_border = elem->style.base->border.size;
+    const float font_border = BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HASBORDER) ? elem->style.base->border.size : 0;
     const float * const font_padding = elem->style.base->padding;
 
     const float x_offset = font_border + font_padding[0];
@@ -2998,7 +3070,7 @@ atra_gui_elem_drawtext(GUIElem *elem, Mesh *mesh, float depth)
 
     const float font_size = elem->style.text->size;
     const float font_spacing = elem->style.text->spacing;
-    const float font_border = elem->style.base->border.size;
+    const float font_border = BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HASBORDER) ? elem->style.base->border.size : 0;
     const float * const font_padding = elem->style.base->padding;
 
     const float x_offset = font_border + font_padding[0];
@@ -3011,10 +3083,10 @@ atra_gui_elem_drawtext(GUIElem *elem, Mesh *mesh, float depth)
     const float row_skip = (font->size + font->size * 0.25f) * scale;
     const int code_count = elem->code_count;
     
-    const int centre = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_CENTRE);
-    const int right = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_RIGHT);
-    const int middle = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_MIDDLE);
-    const int bottom = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_BOTTOM);
+    const int centre = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_CENTRE);
+    const int right = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_RIGHT);
+    const int middle = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_MIDDLE);
+    const int bottom = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_BOTTOM);
 
     const int row_count = atra_list_length(&elem->rows);
     const float x_factor = DECIDE(centre, 0.5f, 1.0f);
@@ -3115,7 +3187,7 @@ ATRA_API
 GUIElem *
 atra_gui_elem_find(const char *str_id)
 {
-    return *(GUIElem **)atra_hashmap_get(&gui.elem_map, str_id);
+    return *(GUIElem **)atra_hashmap_get(&gui.elem_map, &str_id);
 }
 
 /* Adds an element as a child to an element */
@@ -3755,7 +3827,7 @@ atra_gui_text_up(GUIElem *elem)
 
     const float font_size = elem->style.text->size;
     const float font_spacing = elem->style.text->spacing;
-    const float font_border = elem->style.base->border.size;
+    const float font_border = BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HASBORDER) ? elem->style.base->border.size : 0;
     const float * const font_padding = elem->style.base->padding;
 
     const float x_offset = font_border + font_padding[0];
@@ -3766,8 +3838,8 @@ atra_gui_text_up(GUIElem *elem)
     
     const float scale = font_size / font->size;
     
-    const int centre = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_CENTRE);
-    const int right = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_RIGHT);
+    const int centre = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_CENTRE);
+    const int right = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_RIGHT);
 
     const float x_factor = DECIDE(centre, 0.5f, 1.0f);
     
@@ -3842,7 +3914,7 @@ atra_gui_text_down(GUIElem *elem)
 
     const float font_size = elem->style.text->size;
     const float font_spacing = elem->style.text->spacing;
-    const float font_border = elem->style.base->border.size;
+    const float font_border = BIT_CHK(elem->attrs, ATRA_GUI_ELEM_HASBORDER) ? elem->style.base->border.size : 0;
     const float * const font_padding = elem->style.base->padding;
 
     const float x_offset = font_border + font_padding[0];
@@ -3853,8 +3925,8 @@ atra_gui_text_down(GUIElem *elem)
     
     const float scale = font_size / font->size;
     
-    const int centre = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_CENTRE);
-    const int right = BIT_CHK(elem->alignment, ATRA_GUI_ALIGN_RIGHT);
+    const int centre = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_CENTRE);
+    const int right = BIT_CHK(elem->text_align, ATRA_GUI_TEXTALIGN_RIGHT);
 
     const float x_factor = DECIDE(centre, 0.5f, 1.0f);
     

@@ -806,23 +806,23 @@ atra_utf_fromcodepoint(int codepoint, int *size)
     static char utf8[6] = {0};
     int cp_size = 0;
 
-    if (codepoint <= 0x7f) {
-        utf8[0] = (char)codepoint;
+    if (codepoint <= 0x7F) {
+        utf8[0] = codepoint;
         cp_size = 1;
-    } else if (codepoint <= 0x7ff) {
-        utf8[0] = (char)(((codepoint >> 6) & 0x1f) | 0xc0);
-        utf8[1] = (char)((codepoint & 0x3f) | 0x80);
+    } else if (codepoint <= 0x7FF) {
+        utf8[0] = 0xC0 | (codepoint >> 6);
+        utf8[1] = 0x80 | (codepoint & 0x3F);
         cp_size = 2;
-    } else if (codepoint <= 0xffff) {
-        utf8[0] = (char)(((codepoint >> 12) & 0x0f) | 0xe0);
-        utf8[1] = (char)(((codepoint >> 6) & 0x3f) | 0x80);
-        utf8[2] = (char)((codepoint & 0x3f) | 0x80);
+    } else if (codepoint <= 0xFFFF) {
+        utf8[0] = 0xE0 | (codepoint >> 12);
+        utf8[1] = 0x80 | ((codepoint >> 6) & 0x3F);
+        utf8[2] = 0x80 | (codepoint & 0x3F);
         cp_size = 3;
-    } else if (codepoint <= 0x10ffff) {
-        utf8[0] = (char)(((codepoint >> 18) & 0x07) | 0xf0);
-        utf8[1] = (char)(((codepoint >> 12) & 0x3f) | 0x80);
-        utf8[2] = (char)(((codepoint >> 6) & 0x3f) | 0x80);
-        utf8[3] = (char)((codepoint & 0x3f) | 0x80);
+    } else if (codepoint <= 0x10FFFF) {
+        utf8[0] = 0xF0 | (codepoint >> 18);
+        utf8[1] = 0x80 | ((codepoint >> 12) & 0x3F);
+        utf8[2] = 0x80 | ((codepoint >> 6) & 0x3F);
+        utf8[3] = 0x80 | (codepoint & 0x3F);
         cp_size = 4;
     }
     *size = cp_size;
@@ -836,20 +836,16 @@ ATRA_API
 char *
 atra_utf_fromcodepointstr(int *codepoints, int length)
 {
-    char *ptr, *str = calloc(length * 5, 1);
+	char *str = malloc((length * 4 + 1) * sizeof(char));
     const char *utf8 = NULL;
     int i, bytes, size = 0;
 
-    for (i = 0, bytes = 0; i < length; i++) {
+    for (i = 0; i < length; i++) {
         utf8 = atra_utf_fromcodepoint(codepoints[i], &bytes);
         memcpy(str + size, utf8, bytes);
         size += bytes;
     }
-    ptr = realloc(str, size + 1);
-
-    if (ptr != NULL) {
-        str = ptr;
-    }
+	str[length * 4] = '\0';
 
     return str;
 }

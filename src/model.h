@@ -22,6 +22,10 @@
 #define ATRA_MAX_MESH_VERTEX_BUFFERS    16
 #define ATRA_DEFAULT_MESH_SIZE          8
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum buffer_flags {
     ATRA_MESH_BUFFER_POSITION   = BIT(0),
     ATRA_MESH_BUFFER_TEXCOORD   = BIT(1),
@@ -343,5 +347,9 @@ ATRA_API void atra_draw_billboardtex(Camera *cam, Texture *tex, vec3 centre,
 /* Draws a subtexture as a billboard */
 ATRA_API void atra_draw_billboardsubtex(Camera *cam, Texture *tex, IQuad rect,
         vec3 centre, float size, Color tint);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_MODEL_H */

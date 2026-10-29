@@ -15,6 +15,10 @@
 
 #include "common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct TPool;
 typedef struct TPool TPool;
 
@@ -25,5 +29,9 @@ void atra_tpool_delete(TPool *pool);
 
 int atra_tpool_addjob(TPool *pool, ThreadFunc func, void *arg);
 void atra_tpool_wait(TPool *pool);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_THREAD_H */

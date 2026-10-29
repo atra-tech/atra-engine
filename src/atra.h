@@ -30,5 +30,7 @@
 #include "physics.h"
 #include "texture.h"
 #include "log.h"
+#include "light.h"
+#include "framebuffer.h"
 
 #endif /* ATRA_ENGINE_H */

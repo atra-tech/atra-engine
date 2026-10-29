@@ -15,9 +15,13 @@
 #define ATRA_CAMERA_DEFAULT_FOV     PI / 2.0f;
 #define ATRA_CAMERA_DEFAULT_ZOOM    2.0f
 #define ATRA_CAMERA_NEAR_PLANE      0.1f
-#define ATRA_CAMERA_FAR_PLANE       100.0f
+#define ATRA_CAMERA_FAR_PLANE       10000.0f
 
 #include "common.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum camera_type {
     ATRA_CAMERA_PROJECTION,
@@ -82,5 +86,9 @@ ATRA_API void atra_camera_getmainview(vec4 *mat);
 
 /* Copies the main camera's view matrix into the given matrix */
 ATRA_API void atra_camera_getmainproj(vec4 *mat);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_CAMERA_H */

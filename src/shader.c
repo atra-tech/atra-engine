@@ -144,6 +144,7 @@ atra_shader_loadbuffer(const char *vs_code, const char *fs_code)
         shader.locs[ATRA_SHADER_LOC_M_PROJ]         = glGetUniformLocation(shader.prog_id, ATRA_UNIFORM_NAME_PROJMAT);
         shader.locs[ATRA_SHADER_LOC_M_MODEL]        = glGetUniformLocation(shader.prog_id, ATRA_UNIFORM_NAME_MODELMAT);
         shader.locs[ATRA_SHADER_LOC_M_NORMAL]       = glGetUniformLocation(shader.prog_id, ATRA_UNIFORM_NAME_NORMALMAT);
+        shader.locs[ATRA_SHADER_LOC_V_SCREENRES]    = glGetUniformLocation(shader.prog_id, ATRA_UNIFORM_NAME_SCREENRES);
         shader.locs[ATRA_SHADER_LOC_M_BONES]        = glGetUniformLocation(shader.prog_id, ATRA_UNIFORM_NAME_BONEMATS);
 
         /* Fragment shader uniforms */
@@ -243,6 +244,7 @@ atra_shader_loadbuffer_locset(const char *vs_code, const char *fs_code,
         shader.locs[ATRA_SHADER_LOC_M_PROJ]         = glGetUniformLocation(shader.prog_id, ATRA_UNIFORM_NAME_PROJMAT);
         shader.locs[ATRA_SHADER_LOC_M_MODEL]        = glGetUniformLocation(shader.prog_id, ATRA_UNIFORM_NAME_MODELMAT);
         shader.locs[ATRA_SHADER_LOC_M_NORMAL]       = glGetUniformLocation(shader.prog_id, ATRA_UNIFORM_NAME_NORMALMAT);
+        shader.locs[ATRA_SHADER_LOC_V_SCREENRES]    = glGetUniformLocation(shader.prog_id, ATRA_UNIFORM_NAME_SCREENRES);
         shader.locs[ATRA_SHADER_LOC_M_BONES]        = glGetUniformLocation(shader.prog_id, ATRA_UNIFORM_NAME_BONEMATS);
 
         /* Fragment shader uniforms */

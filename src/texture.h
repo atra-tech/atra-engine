@@ -15,6 +15,10 @@
 #include "shader.h"
 #include "util.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum texture_sampling_style {
     ATRA_SAMPLE_NEAREST,
     ATRA_SAMPLE_LINEAR
@@ -223,5 +227,9 @@ ATRA_API void atra_gbuffer_disable(void);
 
 /* Blit depth buffer to default framebuffer's depth buffer */
 ATRA_API void atra_gbuffer_blitdepth(GBuffer *gbuffer);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_TEXTURE_H */

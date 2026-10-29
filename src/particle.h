@@ -15,6 +15,10 @@
 
 #include "model.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum particle_emitter_type {
     ATRA_PARTICLE_EMITTER_CONSTANT,
     ATRA_PARTICLE_EMITTER_BURST
@@ -136,5 +140,9 @@ void atra_particle_field_start(ParticleField field);
 void atra_particle_field_update(ParticleField field, float dt);
 
 void atra_particle_field_render(ParticleField field);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_PARTICLE_H */

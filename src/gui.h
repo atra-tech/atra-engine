@@ -26,6 +26,10 @@
 #include "font.h"
 #include "model.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Element preset types */
 enum gui_elem_type {
     ATRA_GUI_NONE,          /* Typeless */
@@ -110,18 +114,18 @@ enum gui_event_type {
 }; 
 
 enum gui_align {
-    ATRA_GUI_ALIGN_LEFT   = BIT(0),
-    ATRA_GUI_ALIGN_CENTRE = BIT(1),
-    ATRA_GUI_ALIGN_RIGHT  = BIT(2),
-    ATRA_GUI_ALIGN_TOP    = BIT(3),
-    ATRA_GUI_ALIGN_MIDDLE = BIT(4),
-    ATRA_GUI_ALIGN_BOTTOM = BIT(5),
+    ATRA_GUI_TEXTALIGN_LEFT   = BIT(0),
+    ATRA_GUI_TEXTALIGN_CENTRE = BIT(1),
+    ATRA_GUI_TEXTALIGN_RIGHT  = BIT(2),
+    ATRA_GUI_TEXTALIGN_TOP    = BIT(3),
+    ATRA_GUI_TEXTALIGN_MIDDLE = BIT(4),
+    ATRA_GUI_TEXTALIGN_BOTTOM = BIT(5),
 };
 
 enum gui_alignment {
-    ATRA_GUI_ALIGN_MID_LEFT   = ATRA_GUI_ALIGN_MIDDLE | ATRA_GUI_ALIGN_LEFT,
-    ATRA_GUI_ALIGN_MID_CENTRE = ATRA_GUI_ALIGN_MIDDLE | ATRA_GUI_ALIGN_CENTRE,
-    ATRA_GUI_ALIGN_MID_RIGHT  = ATRA_GUI_ALIGN_MIDDLE | ATRA_GUI_ALIGN_RIGHT
+    ATRA_GUI_TEXTALIGN_MID_LEFT   = ATRA_GUI_TEXTALIGN_MIDDLE | ATRA_GUI_TEXTALIGN_LEFT,
+    ATRA_GUI_TEXTALIGN_MID_CENTRE = ATRA_GUI_TEXTALIGN_MIDDLE | ATRA_GUI_TEXTALIGN_CENTRE,
+    ATRA_GUI_TEXTALIGN_MID_RIGHT  = ATRA_GUI_TEXTALIGN_MIDDLE | ATRA_GUI_TEXTALIGN_RIGHT
 };
 
 enum gui_style_entry_type {
@@ -178,13 +182,12 @@ enum gui_cursor_shape {
 };
 
 enum gui_contraint_behavior_type {
-    ATRA_GUI_CONS_WIDTH,
-    ATRA_GUI_CONS_HEIGHT,
-    ATRA_GUI_CONS_DIST_TOP,
-    ATRA_GUI_CONS_DIST_BOT,
-    ATRA_GUI_CONS_DIST_LEFT,
-    ATRA_GUI_CONS_DIST_RIGHT,
-    ATRA_GUI_CONS_TOTAL
+    ATRA_GUI_CONS_DIST_TOP	 = BIT(0),	/* Y position based on distance of top of elem from top of parent */
+    ATRA_GUI_CONS_DIST_BOT	 = BIT(1),	/* Y position based on distance of bottom of elem from bottom of parent */
+    ATRA_GUI_CONS_DIST_LEFT	 = BIT(2),	/* X position based on distance of top of elem from top of parent */
+    ATRA_GUI_CONS_DIST_RIGHT = BIT(3),	/* X position based on distance of bottom of elem from bottom of parent */
+	ATRA_GUI_CONS_MIDDLE_X	 = BIT(4),	/* Overrides Y position alignment options to place elem in middle of parent */
+	ATRA_GUI_CONS_MIDDLE_Y	 = BIT(5)	/* Overrides X position alignment options to place elem in middle of parent */
 };
 
 enum gui_constraint_data_type {
@@ -340,7 +343,8 @@ struct GUIElem {
     float anim_time;    /* Current time elapsed in animation */
     u32 attrs;          /* Element attribute flags */
     u32 state;          /* Current element state */
-    u32 alignment;      /* Alignment rules to use when auto-aligning children */
+	u32 align;			/* How element quad data should be interpreted in relation to parent */
+    u32 text_align;     /* Alignment rules to use when aligning text */
     int dirty;          /* Set when element requires a mesh rebuild */
     float ratio;        /* Element width/height ratio */
 
@@ -415,6 +419,9 @@ ATRA_API void atra_gui_render(void);
 /* Signals a remesh on all windows and elements */
 ATRA_API void atra_gui_fullremesh(void);
 
+/* Sets the GUI texture atlas for all elements */
+ATRA_API void atra_gui_settextureatlas(Texture *tex);
+
 
 /*
  *  GUI Window Functions
@@ -487,6 +494,9 @@ ATRA_API void atra_gui_elem_setmaxscroll_x(GUIElem *elem, int type, float data);
 
 /* Sets the maximum scroll amount of the element on the y axis */
 ATRA_API void atra_gui_elem_setmaxscroll_y(GUIElem *elem, int type, float data);
+
+/* Sets the alignment constraint flags of the element */
+ATRA_API void atra_gui_elem_setalignment(GUIElem *elem, u32 flags);
 
 /* Sets the pointer to a specific style subtype */
 ATRA_API void atra_gui_elem_setstyle(GUIElem *elem, int type, void *style);
@@ -571,6 +581,7 @@ ATRA_API GUIElem * atra_gui_elem_create_combobox(const char *id, int attrib, GUI
 ATRA_API GUIElem * atra_gui_elem_create_menu(const char *id, int attrib, GUIQuad quad);
 ATRA_API GUIElem * atra_gui_elem_create_tooltip(const char *id, int attrib, GUIQuad quad);
 
+
 /* 
  *  Specialised Element Auxiliary Functions
  */
@@ -580,5 +591,9 @@ ATRA_API void atra_gui_progressbar_setprogress(float prog);
 
 /* Set the text in the centre of the progress bar (e.g. to display a percentage) */
 ATRA_API void atra_gui_progressbar_settext(const char *str);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_GUI_H */

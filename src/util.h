@@ -13,6 +13,10 @@
 #include "common.h"
 #include "memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  *  Safety and signalling utilities
  */
@@ -264,5 +268,8 @@ ATRA_API void atra_util_openurl(const char *url);
 /* Returns the number of logical CPU cores */
 ATRA_API int atra_util_getcorecount(void);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_UTIL_H */

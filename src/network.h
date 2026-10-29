@@ -23,6 +23,10 @@
 #define ATRA_INADDR_LOOPBACK    INADDR_LOOPBACK
 #define ATRA_INADDR_NONE        INADDR_NONE
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef SDLNet_SocketSet SocketSet;
 typedef SDLNet_GenericSocket GenericSocket;
 
@@ -171,5 +175,8 @@ ATRA_API int atra_net_socketset_checksockets(SocketSet set, u32 timeout);
  * Returns non-zero on discovered activity. */
 #define atra_net_socketset_isready(socket) SDLNet_SocketReady(socket)
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_NETWORK_H */

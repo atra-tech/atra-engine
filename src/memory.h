@@ -24,6 +24,9 @@
 #define ATRA_LIST_BYTE_ALIGN    8
 #define ATRA_HASHMAP_MAX_LOAD   0.7
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum hashmap_free_mode {
     HASH_FREE_KEY = BIT(0),
@@ -425,5 +428,8 @@ ATRA_LIST_DECLARE(f64)
 ATRA_LIST_DECLARE(size_t)
 ATRA_LIST_DECLARE(uintptr_t)
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_MEMORY_H */

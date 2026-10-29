@@ -13,6 +13,10 @@
 #include "common.h"
 #include "texture.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum atra_window_flag {
     ATRA_WINDOW_FULLSCREEN  = BIT(0),   /* Run program in fullscreen mode */
     ATRA_WINDOW_OPENGL      = BIT(1),   /* Window has an OpenGL context */
@@ -617,5 +621,9 @@ ATRA_API u32 atra_time_getframetime(void);
 
 /* Returns the total number of frames drawn */
 ATRA_API u32 atra_time_getframecount(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_CORE_H */

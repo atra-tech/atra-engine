@@ -795,6 +795,14 @@ atra_mesh_draw(Mesh *mesh, Material *mat, mat4 transform)
                 normal, ATRA_SHADER_UNIFORM_MAT4, 1);
     }
 
+	if (mat->shader.locs[ATRA_SHADER_LOC_V_SCREENRES] != -1) {
+		ivec2 screen_res = {
+			atra_window_getwidth(),
+			atra_window_getheight()
+		};
+		atra_shader_setuniform(mat->shader.locs[ATRA_SHADER_LOC_V_SCREENRES],
+				screen_res, ATRA_SHADER_UNIFORM_IVEC2, 1);
+	}
     
     /* Bind all available texture maps */
     for (i = 0; i < ATRA_TEXTURE_TOTAL; i++) {
@@ -999,6 +1007,15 @@ atra_mesh_drawinstanced(Mesh *mesh, Material *mat, mat4 *transforms, int count,
         atra_shader_setuniform(mat->shader.locs[ATRA_SHADER_LOC_M_NORMAL],
                 normal, ATRA_SHADER_UNIFORM_MAT4, 1);
     }
+
+	if (mat->shader.locs[ATRA_SHADER_LOC_V_SCREENRES] != -1) {
+		ivec2 screen_res = {
+			atra_window_getwidth(),
+			atra_window_getheight()
+		};
+		atra_shader_setuniform(mat->shader.locs[ATRA_SHADER_LOC_V_SCREENRES],
+				screen_res, ATRA_SHADER_UNIFORM_IVEC2, 1);
+	}
 
     /* Bind all available texture maps */
     for (i = 0; i < ATRA_TEXTURE_TOTAL; i++) {

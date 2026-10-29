@@ -18,6 +18,10 @@
 
 #include "common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum atra_audio_effects {
     ATRA_SFX_NULL                       = AL_EFFECT_NULL,
     ATRA_SFX_EAXREVERB                  = AL_EFFECT_EAXREVERB,
@@ -222,7 +226,6 @@ typedef struct AudioAuxSlot {
     uint id;
 } AudioAuxSlot;
 
-
 /* Set up initial audio subsystem state, and load the default devices */
 ATRA_API void atra_audio_init(void);
 
@@ -422,5 +425,8 @@ ATRA_API extern LPALGETAUXILIARYEFFECTSLOTIV atra_al_getauxiliaryeffectslot_iv;
 ATRA_API extern LPALGETAUXILIARYEFFECTSLOTF atra_al_getauxiliaryeffectslot_f;
 ATRA_API extern LPALGETAUXILIARYEFFECTSLOTFV atra_al_getauxiliaryeffectslot_fv;
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_AUDIO_H */

@@ -12,6 +12,10 @@
 
 #include "common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum log_level {
     LOG_DEBUG,
     LOG_INFO,
@@ -34,5 +38,10 @@ ATRA_API void atra_log_clear(void);
 
 /* Saves the log to a file, with the option to append to previous writes */
 ATRA_API void atra_log_save(const char *path, int append);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_LOG_H */

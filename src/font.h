@@ -24,6 +24,10 @@
 #define ATRA_FONT_SDF_PIXEL_DIST_SCALE      64.0f
 #define ATRA_FONT_BITMAP_ALPHA_THRESHOLD    80
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum font_type {
     ATRA_FONT_BITMAP,
     ATRA_FONT_SDF
@@ -106,5 +110,10 @@ ATRA_API void atra_font_drawcodepoint(Font *font, int codepoint,
 /* Draws a single codepoint character to the given mesh*/
 ATRA_API void atra_font_drawcodepoint_mesh(const Font *font, int codepoint,
         float x, float y, float depth, float font_size, Color color);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_FONT_H */

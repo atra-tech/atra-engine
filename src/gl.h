@@ -177,6 +177,10 @@
     #define GL_DEBUG_SEVERITY_NOTIFICATION      0x826B
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum gl_extension {
     ATRA_GL_EXT_VAO,                /* Vertex Array Objects */
     ATRA_GL_EXT_INSTANCING,         /* Instance rendering */
@@ -751,5 +755,8 @@ ATRA_API void atra_gl_setblendmode(int mode);
 /* Sets the blending mode factors and equation */
 ATRA_API void atra_gl_setblendfactors(int src_factor, int dst_factor, int equation);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_GL_H */

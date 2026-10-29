@@ -145,6 +145,7 @@ ATRA_API
 void
 atra_gl_detectextensions(void)
 {
+    //TODO: Actually detect this shit
     gl_ext_support.exts[ATRA_GL_EXT_VAO] = 1;
     gl_ext_support.exts[ATRA_GL_EXT_INSTANCING] = 1;
     gl_ext_support.exts[ATRA_GL_EXT_TEX_ARRAY] = 1;

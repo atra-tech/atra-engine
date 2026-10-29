@@ -91,6 +91,10 @@
 /* Silences unused variable warnings */
 #define ATRA_UNUSED(x) (void)(x)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef int8_t      i8;
 typedef int16_t     i16;
 typedef int32_t     i32;
@@ -123,5 +127,9 @@ typedef struct Quad {
 typedef struct IQuad {
     int x, y, w, h;
 } IQuad;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATRA_COMMON_H */
